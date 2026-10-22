@@ -1,0 +1,37 @@
+{
+  "name": "@noop-cmf/cmf-ble",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WebBLE GATT protocol layer, AES-128-CBC session crypto, frame codec, and Gadgetbridge SQLite adapter.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@noop-cmf/types": "workspace:*",
+    "@noop-cmf/watch-simulator": "workspace:*",
+    "sql.js": "^1.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/sql.js": "^1.4.11",
+    "@vitest/coverage-v8": "^3.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.0.0"
+  }
+}

@@ -5,7 +5,15 @@
       "Shell(pnpm --filter @noop-cmf/types run build 2>&1; echo \"BUILD_EXIT=$?\")",
       "Shell(ls node_modules/.pnpm/zod@3.25.76/node_modules/zod/ 2>&1; echo \"---\"; ls packages/types/node_modules/ 2>&1)",
       "Shell(git config user.name 2>&1; git config user.email 2>&1; echo \"---\"; git init 2>&1 && git add -A && git status --short | head -30)",
-      "Shell(git:*)"
+      "Shell(git:*)",
+      "Shell(system_profiler:*)",
+      "Shell(ls:*)",
+      "Shell(grep:*)",
+      "Shell(sw_vers:*)",
+      "Shell(python3 --version 2>&1; python3 -c \"import bleak; print('bleak', bleak.__version__)\" 2>&1; ls /Applications | grep -iE \"chrome|firefox\" 2>&1)",
+      "Shell(python3 -m venv /ble-probe)",
+      "Shell(/ble-probe/bin/pip:*)",
+      "Shell(/ble-probe/bin/python:*)"
     ],
     "deny": [],
     "defaultMode": "default"
