@@ -1,0 +1,10 @@
+{
+  "name": "noop-cmf",
+  "short_name": "noop-cmf",
+  "description": "Local-first Whoop-style analytics for CMF Watch Pro 2.",
+  "start_url": "/?demo=true",
+  "display": "standalone",
+  "background_color": "#0B0E14",
+  "theme_color": "#0B0E14",
+  "icons": []
+}
