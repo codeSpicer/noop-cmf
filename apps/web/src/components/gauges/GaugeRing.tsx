@@ -8,6 +8,7 @@ interface GaugeRingProps {
   readonly stroke?: number;
   readonly color: string;
   readonly label: string;
+  readonly suffix?: string | undefined;
   readonly testId?: string | undefined;
 }
 
@@ -31,7 +32,7 @@ function arcPath(cx: number, cy: number, radius: number, fraction: number): stri
 }
 
 /** Compute the arc path for a value/max pair (exported for unit tests). */
-export function gaugeArcPath(value: number, max: number, size = 120, stroke = 12): string {
+export function gaugeArcPath(value: number, max: number, size = 160, stroke = 14): string {
   const radius = size / 2 - stroke;
   const fraction = max <= 0 ? 0 : Math.min(1, Math.max(0, value / max));
   return arcPath(size / 2, size / 2, radius, fraction);
@@ -40,14 +41,17 @@ export function gaugeArcPath(value: number, max: number, size = 120, stroke = 12
 export function GaugeRing({
   value,
   max,
-  size = 120,
-  stroke = 12,
+  size = 160,
+  stroke = 14,
   color,
   label,
+  suffix = '',
   testId,
 }: GaugeRingProps) {
   const radius = size / 2 - stroke;
   const center = size / 2;
+  const valueFontSize = Math.round(size * 0.24);
+  const labelFontSize = Math.max(10, Math.round(size * 0.075));
   const track = `M ${String(center - radius)} ${String(center)} A ${String(radius)} ${String(radius)} 0 1 1 ${String(center + radius)} ${String(center)} A ${String(radius)} ${String(radius)} 0 1 1 ${String(center - radius)} ${String(center)}`;
   return (
     <svg
@@ -58,7 +62,7 @@ export function GaugeRing({
       aria-label={`${label}: ${String(value)} of ${String(max)}`}
       data-testid={testId}
     >
-      <path d={track} fill="none" stroke="#1d2530" strokeWidth={stroke} strokeLinecap="round" />
+      <path d={track} fill="none" stroke="#1e2735" strokeWidth={stroke} strokeLinecap="round" />
       <path
         d={gaugeArcPath(value, max, size, stroke)}
         fill="none"
@@ -69,15 +73,24 @@ export function GaugeRing({
       />
       <text
         x={center}
-        y={center - 2}
+        y={center}
         textAnchor="middle"
+        dominantBaseline="central"
         fill="#e8edf3"
-        fontSize="22"
-        fontWeight="700"
+        fontSize={valueFontSize}
+        fontWeight="600"
       >
         {value}
+        {suffix}
       </text>
-      <text x={center} y={center + 16} textAnchor="middle" fill="#8b98a9" fontSize="11">
+      <text
+        x={center}
+        y={center + valueFontSize * 0.8}
+        textAnchor="middle"
+        fill="#8b98a9"
+        fontSize={labelFontSize}
+        letterSpacing="0.02em"
+      >
         {label}
       </text>
     </svg>

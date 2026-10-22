@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
-import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { Nav } from '@/components/Nav';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -16,31 +16,12 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const NAV: ReadonlyArray<{ href: string; label: string }> = [
-  { href: '/', label: 'Overview' },
-  { href: '/strain', label: 'Strain' },
-  { href: '/recovery', label: 'Recovery' },
-  { href: '/sleep', label: 'Sleep' },
-  { href: '/journal', label: 'Journal' },
-  { href: '/sync', label: 'Sync' },
-];
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <nav aria-label="Primary" className="flex flex-wrap gap-1 border-b border-card p-2">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded px-3 py-2 text-sm hover:bg-card"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <main className="mx-auto max-w-5xl p-4">{children}</main>
+        <Nav />
+        <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
       </body>
     </html>
   );

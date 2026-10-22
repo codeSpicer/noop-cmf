@@ -42,15 +42,22 @@ export function Sparkline({
     .join(' ');
   return (
     <svg
-      width={width}
-      height={height}
       viewBox={`0 0 ${String(width)} ${String(height)}`}
+      className="h-12 w-full"
+      preserveAspectRatio="none"
       role="img"
       aria-label={label}
       data-testid={testId}
     >
       {path ? (
-        <path d={path} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" />
+        <path
+          d={path}
+          fill="none"
+          stroke={color}
+          strokeWidth={2}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
       ) : null}
     </svg>
   );

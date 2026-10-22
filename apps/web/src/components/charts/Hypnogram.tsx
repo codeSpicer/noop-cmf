@@ -51,6 +51,7 @@ export function Hypnogram({ segments, width = 560, rowHeight = 22, testId }: Hyp
       width={width}
       height={height}
       viewBox={`0 0 ${String(width)} ${String(height)}`}
+      className="h-auto w-full"
       role="img"
       aria-label={`Hypnogram with ${String(segments.length)} segments`}
       data-testid={testId}

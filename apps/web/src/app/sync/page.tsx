@@ -79,20 +79,25 @@ export default function SyncPage() {
   }
 
   return (
-    <section aria-label="Sync">
-      <h1 className="mb-4 text-2xl font-bold">Sync</h1>
-      <p role="status" data-testid="sync-status">
+    <section aria-label="Sync" className="space-y-4">
+      <header>
+        <p className="text-sm text-muted">Connect</p>
+        <h1 className="text-2xl font-semibold text-foreground">Sync</h1>
+      </header>
+      <p role="status" data-testid="sync-status" className="text-sm text-muted">
         {status}
       </p>
-      <div className="mt-4">
-        <label htmlFor="persona">Demo persona</label>
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <label htmlFor="persona" className="mr-2 text-sm text-muted">
+          Demo persona
+        </label>
         <select
           id="persona"
           value={persona}
           onChange={(event) => {
             setPersona(event.target.value);
           }}
-          className="ml-2 bg-card p-2"
+          className="rounded-lg border border-line bg-void p-2 text-sm text-foreground"
           data-testid="persona-select"
         >
           {demoPersonas().map((option) => (
@@ -106,14 +111,14 @@ export default function SyncPage() {
           onClick={() => {
             void runDemoSync();
           }}
-          className="ml-2 rounded bg-strain px-4 py-2 text-[#04121f]"
+          className="ml-3 rounded-full bg-strain px-4 py-2 text-sm font-semibold text-[#04121f]"
           data-testid="demo-sync"
         >
           Run demo sync
         </button>
       </div>
       <div
-        className="mt-4 rounded border-2 border-dashed border-card p-6"
+        className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-sm text-muted"
         data-testid="db-dropzone"
         onDragOver={(event) => {
           event.preventDefault();
@@ -127,30 +132,34 @@ export default function SyncPage() {
         }}
       >
         Drop a Gadgetbridge SQLite .db file here
-        <input
-          type="file"
-          accept=".db"
-          aria-label="Upload Gadgetbridge database"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) {
-              void handleDrop(file);
-            }
-          }}
-        />
+        <label className="mt-3 inline-block cursor-pointer rounded-full border border-line bg-surface px-4 py-2 text-sm text-foreground hover:bg-void">
+          Choose .db file
+          <input
+            type="file"
+            accept=".db"
+            aria-label="Upload Gadgetbridge database"
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                void handleDrop(file);
+              }
+            }}
+          />
+        </label>
       </div>
       <button
         type="button"
         onClick={() => {
           void pushRecovery();
         }}
-        className="mt-4 rounded bg-recovery px-4 py-2 text-black"
+        className="rounded-full bg-recovery px-5 py-2 text-sm font-semibold text-[#04121f]"
         data-testid="push-recovery"
       >
         Push Recovery to Watch
       </button>
       {isDemoMode(typeof window === 'undefined' ? '' : window.location.search) ? (
-        <p className="mt-2 text-sm">Demo mode active.</p>
+        <p className="text-sm text-muted">Demo mode active.</p>
       ) : null}
     </section>
   );

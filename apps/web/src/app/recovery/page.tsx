@@ -46,12 +46,25 @@ export default function RecoveryPage() {
     return <p aria-busy="true">Loading recovery…</p>;
   }
   return (
-    <section aria-label="Recovery">
-      <h1 className="mb-4 text-2xl font-bold">Recovery</h1>
-      <p data-testid="recovery-value">Recovery: {recovery}%</p>
-      <p data-testid="ehrv-value">Overnight eHRV: {ehrv} ms</p>
-      <p data-testid="rhr-value">Overnight RHR: {rhr} bpm</p>
-      <div className="mt-4">
+    <section aria-label="Recovery" className="space-y-4">
+      <header>
+        <p className="text-sm text-muted">Readiness</p>
+        <h1 className="text-2xl font-semibold text-foreground">Recovery</h1>
+      </header>
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <p data-testid="recovery-value" className="text-3xl font-semibold text-recovery">
+          Recovery: {recovery}%
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+          <p data-testid="ehrv-value" className="text-muted">
+            Overnight eHRV: <span className="text-foreground">{ehrv} ms</span>
+          </p>
+          <p data-testid="rhr-value" className="text-muted">
+            Overnight RHR: <span className="text-foreground">{rhr} bpm</span>
+          </p>
+        </div>
+      </div>
+      <div className="rounded-2xl border border-line bg-card p-4">
         <Sparkline
           values={[rhr - 2, rhr, rhr + 1, rhr - 1, rhr]}
           color="#00F19F"

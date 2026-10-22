@@ -8,16 +8,23 @@ import {
   analyzeSleep,
 } from '@noop-cmf/physio-engine';
 import { EpochMsSchema, getRecoveryTier } from '@noop-cmf/types';
+import type { RecoveryColorTier } from '@noop-cmf/types';
 import { GaugeRing } from '@/components/gauges/GaugeRing';
 import { Sparkline } from '@/components/charts/Sparkline';
 import { createDemoProvider, isDemoMode } from '@/lib/demo-provider';
+
+const RECOVERY_TIER_COLORS: Record<RecoveryColorTier, string> = {
+  green: '#00F19F',
+  yellow: '#FFBE0B',
+  red: '#FF0055',
+};
 
 interface OverviewStats {
   strain: number;
   recovery: number;
   sleepPerformance: number;
   strainTarget: number;
-  tier: string;
+  tier: RecoveryColorTier;
 }
 
 /** Overview route: triple SVG gauge rings + 7-day sparklines (demo data). */
@@ -81,35 +88,42 @@ export default function OverviewPage() {
     return <p aria-busy="true">Loading overview…</p>;
   }
   return (
-    <section aria-label="Overview">
-      <h1 className="mb-4 text-2xl font-bold">Overview</h1>
-      <div className="flex flex-wrap gap-6">
-        <GaugeRing
-          value={stats.strain}
-          max={21}
-          color="#0096FF"
-          label="Strain"
-          testId="strain-ring"
-        />
-        <GaugeRing
-          value={stats.recovery}
-          max={99}
-          color="#00F19F"
-          label={`Recovery ${stats.tier}`}
-          testId="recovery-ring"
-        />
-        <GaugeRing
-          value={stats.sleepPerformance}
-          max={100}
-          color="#7B61FF"
-          label="Sleep"
-          testId="sleep-ring"
-        />
+    <section aria-label="Overview" className="space-y-4">
+      <header>
+        <p className="text-sm text-muted">Today</p>
+        <h1 className="text-2xl font-semibold text-foreground">Overview</h1>
+      </header>
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <div className="flex flex-wrap items-center justify-center gap-6">
+          <GaugeRing
+            value={stats.recovery}
+            max={99}
+            color={RECOVERY_TIER_COLORS[stats.tier]}
+            label={`Recovery ${stats.tier}`}
+            suffix="%"
+            testId="recovery-ring"
+          />
+          <GaugeRing
+            value={stats.strain}
+            max={21}
+            color="#0096FF"
+            label="Strain"
+            testId="strain-ring"
+          />
+          <GaugeRing
+            value={stats.sleepPerformance}
+            max={100}
+            color="#7B61FF"
+            label="Sleep"
+            suffix="%"
+            testId="sleep-ring"
+          />
+        </div>
+        <p data-testid="strain-target" className="mt-6 text-center text-sm text-muted">
+          Optimal strain target: <span className="text-foreground">{stats.strainTarget}</span>
+        </p>
       </div>
-      <p data-testid="strain-target" className="mt-4">
-        Optimal strain target: {stats.strainTarget}
-      </p>
-      <div className="mt-4">
+      <div className="rounded-2xl border border-line bg-card p-4">
         <Sparkline
           values={[8, 12, 9, 14, 11, 13, stats.strain]}
           color="#0096FF"

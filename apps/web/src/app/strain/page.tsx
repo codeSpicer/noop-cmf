@@ -7,7 +7,7 @@ import { Sparkline } from '@/components/charts/Sparkline';
 import { createDemoProvider, isDemoMode } from '@/lib/demo-provider';
 
 const ZONE_COLORS: Record<HrZone, string> = {
-  1: '#3a4657',
+  1: '#8b98a9',
   2: '#0096ff',
   3: '#00f19f',
   4: '#ffbe0b',
@@ -47,27 +47,38 @@ export default function StrainPage() {
   const totals = Object.values(zones);
   const total = totals.reduce((sum, minutes) => sum + minutes, 0);
   return (
-    <section aria-label="Strain">
-      <h1 className="mb-4 text-2xl font-bold">Strain</h1>
-      <p data-testid="trimp-value">Workout TRIMP: {trimp.toFixed(1)}</p>
-      <div
-        className="mt-4 flex h-8 w-full overflow-hidden rounded"
-        data-testid="zone-bars"
-        role="img"
-        aria-label="HR zone time bars"
-      >
-        {Object.entries(zones).map(([zone, minutes]) => (
-          <div
-            key={zone}
-            title={`Zone ${zone}: ${String(minutes)} min`}
-            style={{
-              width: `${String(total > 0 ? (minutes / total) * 100 : 0)}%`,
-              backgroundColor: ZONE_COLORS[Number(zone) as HrZone],
-            }}
-          />
-        ))}
+    <section aria-label="Strain" className="space-y-4">
+      <header>
+        <p className="text-sm text-muted">Daily load</p>
+        <h1 className="text-2xl font-semibold text-foreground">Strain</h1>
+      </header>
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <p data-testid="trimp-value" className="text-muted">
+          Workout TRIMP: <span className="text-foreground">{trimp.toFixed(1)}</span>
+        </p>
+        <div
+          className="mt-4 flex h-8 w-full overflow-hidden rounded-lg"
+          data-testid="zone-bars"
+          role="img"
+          aria-label="HR zone time bars"
+        >
+          {Object.entries(zones).map(([zone, minutes]) => (
+            <div
+              key={zone}
+              title={`Zone ${zone}: ${String(minutes)} min`}
+              style={{
+                width: `${String(total > 0 ? (minutes / total) * 100 : 0)}%`,
+                backgroundColor: ZONE_COLORS[Number(zone) as HrZone],
+              }}
+            />
+          ))}
+        </div>
+        <div className="mt-2 flex justify-between text-xs text-faint">
+          <span>Zone 1</span>
+          <span>Zone 5</span>
+        </div>
       </div>
-      <div className="mt-4">
+      <div className="rounded-2xl border border-line bg-card p-4">
         <Sparkline
           values={[total, total * 0.8, total * 1.1]}
           color="#0096FF"

@@ -41,12 +41,22 @@ export default function SleepPage() {
     return <p aria-busy="true">Loading sleep…</p>;
   }
   return (
-    <section aria-label="Sleep">
-      <h1 className="mb-4 text-2xl font-bold">Sleep</h1>
-      <Hypnogram segments={segments} testId="hypnogram" />
-      <p data-testid="sleep-need" className="mt-4">
-        Tonight&apos;s sleep need: {Math.round(need / 60)}h {need % 60}m
-      </p>
+    <section aria-label="Sleep" className="space-y-4">
+      <header>
+        <p className="text-sm text-muted">Last night</p>
+        <h1 className="text-2xl font-semibold text-foreground">Sleep</h1>
+      </header>
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <Hypnogram segments={segments} testId="hypnogram" />
+      </div>
+      <div className="rounded-2xl border border-line bg-card p-6">
+        <p data-testid="sleep-need" className="text-muted">
+          Tonight&apos;s sleep need:{' '}
+          <span className="text-foreground">
+            {Math.round(need / 60)}h {need % 60}m
+          </span>
+        </p>
+      </div>
     </section>
   );
 }
