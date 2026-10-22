@@ -14,3 +14,6 @@ apps/web/.next/
 apps/web/out/
 apps/web/test-results/
 apps/web/playwright-report/
+
+# Local working roadmap (not shipped with the repo)
+CLAUDE.md
