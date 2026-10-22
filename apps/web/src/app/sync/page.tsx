@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GadgetbridgeSqliteProvider, loadSqlJs } from '@noop-cmf/cmf-ble';
 import {
   EpochMsSchema,
@@ -15,6 +15,21 @@ import { createDemoProvider, demoPersonas, isDemoMode } from '@/lib/demo-provide
 export default function SyncPage() {
   const [status, setStatus] = useState('Idle');
   const [persona, setPersona] = useState('endurance-runner');
+
+  useEffect(() => {
+    let cancelled = false;
+    async function restore(): Promise<void> {
+      const db = getDatabase();
+      const count = await db.hrSamples.count();
+      if (!cancelled && count > 0) {
+        setStatus(`Restored ${String(count)} HR samples from local storage.`);
+      }
+    }
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function runDemoSync(): Promise<void> {
     setStatus('Syncing demo data…');
@@ -91,7 +106,7 @@ export default function SyncPage() {
           onClick={() => {
             void runDemoSync();
           }}
-          className="ml-2 rounded bg-strain px-4 py-2"
+          className="ml-2 rounded bg-strain px-4 py-2 text-[#04121f]"
           data-testid="demo-sync"
         >
           Run demo sync

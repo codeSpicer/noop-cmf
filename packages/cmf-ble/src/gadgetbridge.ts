@@ -121,14 +121,32 @@ export interface ParsedGadgetbridge {
   readonly steps: Array<{ readonly timestamp: EpochMs; readonly steps: number }>;
 }
 
+/** Location of the sql.js WASM binary served from the web app. */
+export const SQL_WASM_PATH = '/sql-wasm.wasm';
+
 let cachedSql: Awaited<ReturnType<typeof initSqlJs>> | undefined;
 
 /**
+ * True when running under Node.js (including jsdom test environments).
+ */
+function isNode(): boolean {
+  return (
+    typeof process !== 'undefined' &&
+    (process as { versions?: { node?: string } }).versions?.node !== undefined
+  );
+}
+
+/**
  * Load (and cache) the sql.js WASM module.
+ *
+ * `locateFile` points at the WASM served from the app root in real
+ * browsers; in Node (unit tests, SSR) sql.js resolves its own dist file.
  */
 export async function loadSqlJs(): Promise<Awaited<ReturnType<typeof initSqlJs>>> {
   if (!cachedSql) {
-    cachedSql = await initSqlJs({});
+    cachedSql = isNode()
+      ? await initSqlJs({})
+      : await initSqlJs({ locateFile: () => SQL_WASM_PATH });
   }
   return cachedSql;
 }

@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-typecheck-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run lint typecheck test
+      - run: pnpm --filter @noop-cmf/types test:coverage
+      - run: pnpm --filter @noop-cmf/physio-engine test:coverage
+      - run: pnpm --filter @noop-cmf/watch-simulator test:coverage
+      - run: pnpm --filter @noop-cmf/cmf-ble test:coverage
+      - run: pnpm --filter web test:coverage
+        env:
+          NODE_ENV: test
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: pnpm turbo run build
+      - run: pnpm --filter web test:e2e
