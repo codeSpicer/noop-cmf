@@ -15,6 +15,7 @@ import type {
   HrSample,
   SleepSegment,
   Spo2Sample,
+  StepSample,
   StressSample,
   TimeRange,
   WatchProviderError,
@@ -34,6 +35,7 @@ describe('WatchDataProvider contract', () => {
       { timestamp: START, stress: StressScoreSchema.parse(30) },
     ];
     const spo2Samples: Spo2Sample[] = [{ timestamp: START, spo2: SpO2PercentSchema.parse(98) }];
+    const stepSamples: StepSample[] = [{ timestamp: START, steps: 420 }];
     const sleepSegments: SleepSegment[] = [{ start: START, end: MID, stage: 'deep' }];
     const workouts: Workout[] = [
       {
@@ -54,6 +56,7 @@ describe('WatchDataProvider contract', () => {
       getSpo2Samples: vi.fn(() => Promise.resolve({ ok: true as const, value: spo2Samples })),
       getSleepSegments: vi.fn(() => Promise.resolve({ ok: true as const, value: sleepSegments })),
       getWorkouts: vi.fn(() => Promise.resolve({ ok: true as const, value: workouts })),
+      getStepSamples: vi.fn(() => Promise.resolve({ ok: true as const, value: stepSamples })),
       pushRecoveryNotification: vi.fn(() => Promise.resolve(okVoid)),
     };
 
@@ -70,6 +73,7 @@ describe('WatchDataProvider contract', () => {
     expect(await provider.getSpo2Samples(range)).toEqual({ ok: true, value: spo2Samples });
     expect(await provider.getSleepSegments(range)).toEqual({ ok: true, value: sleepSegments });
     expect(await provider.getWorkouts(range)).toEqual({ ok: true, value: workouts });
+    expect(await provider.getStepSamples(range)).toEqual({ ok: true, value: stepSamples });
     expect(await provider.pushRecoveryNotification(notification)).toEqual(okVoid);
     expect(await provider.disconnect()).toEqual(okVoid);
   });
@@ -93,6 +97,7 @@ describe('WatchDataProvider contract', () => {
       getSpo2Samples: () => Promise.resolve(failure),
       getSleepSegments: () => Promise.resolve(failure),
       getWorkouts: () => Promise.resolve(failure),
+      getStepSamples: () => Promise.resolve(failure),
       pushRecoveryNotification: () => Promise.resolve(okVoid),
     };
 

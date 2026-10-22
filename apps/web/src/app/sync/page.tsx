@@ -7,9 +7,56 @@ import {
   MillisecondsSchema,
   RecoveryPercentSchema,
   StrainScoreSchema,
+  type TimeRange,
+  type WatchDataProvider,
 } from '@noop-cmf/types';
-import { clearDatabase, getDatabase } from '@/db/database';
+import { clearDatabase, getDatabase, type NoopCmfDatabase } from '@/db/database';
 import { createDemoProvider, demoPersonas, isDemoMode } from '@/lib/demo-provider';
+
+interface ImportCounts {
+  readonly hr: number;
+  readonly stress: number;
+  readonly spo2: number;
+  readonly sleep: number;
+  readonly workouts: number;
+  readonly steps: number;
+}
+
+/** Pull every sample kind from a provider and persist it to IndexedDB. */
+async function importAll(
+  provider: WatchDataProvider,
+  range: TimeRange,
+  db: NoopCmfDatabase,
+): Promise<ImportCounts> {
+  const [hr, stress, spo2, sleep, workouts, steps] = await Promise.all([
+    provider.getHeartRateSamples(range),
+    provider.getStressSamples(range),
+    provider.getSpo2Samples(range),
+    provider.getSleepSegments(range),
+    provider.getWorkouts(range),
+    provider.getStepSamples(range),
+  ]);
+  await db.transaction(
+    'rw',
+    [db.hrSamples, db.stressSamples, db.spo2Samples, db.sleepSegments, db.workouts, db.steps],
+    async () => {
+      if (hr.ok) await db.hrSamples.bulkPut(hr.value);
+      if (stress.ok) await db.stressSamples.bulkPut(stress.value);
+      if (spo2.ok) await db.spo2Samples.bulkPut(spo2.value);
+      if (sleep.ok) await db.sleepSegments.bulkPut(sleep.value);
+      if (workouts.ok) await db.workouts.bulkPut(workouts.value);
+      if (steps.ok) await db.steps.bulkPut(steps.value);
+    },
+  );
+  return {
+    hr: hr.ok ? hr.value.length : 0,
+    stress: stress.ok ? stress.value.length : 0,
+    spo2: spo2.ok ? spo2.value.length : 0,
+    sleep: sleep.ok ? sleep.value.length : 0,
+    workouts: workouts.ok ? workouts.value.length : 0,
+    steps: steps.ok ? steps.value.length : 0,
+  };
+}
 
 /** Sync route: demo persona selector, Gadgetbridge dropzone, mock BLE sync. */
 export default function SyncPage() {
@@ -38,13 +85,10 @@ export default function SyncPage() {
     await clearDatabase(db);
     const end = EpochMsSchema.parse(Date.UTC(2024, 0, 30));
     const start = EpochMsSchema.parse(end - 30 * 86_400_000);
-    const hr = await provider.getHeartRateSamples({ start, end });
-    if (hr.ok) {
-      await db.hrSamples.bulkPut(hr.value);
-      setStatus(`Synced ${String(hr.value.length)} HR samples (${persona}).`);
-    } else {
-      setStatus('Demo sync failed.');
-    }
+    const counts = await importAll(provider, { start, end }, db);
+    setStatus(
+      `Synced ${String(counts.hr)} HR samples, ${String(counts.workouts)} workouts (${persona}).`,
+    );
   }
 
   async function handleDrop(file: File): Promise<void> {
@@ -60,11 +104,10 @@ export default function SyncPage() {
     const db = getDatabase();
     await clearDatabase(db);
     const range = { start: EpochMsSchema.parse(0), end: EpochMsSchema.parse(Date.now()) };
-    const hr = await provider.getHeartRateSamples(range);
-    if (hr.ok) {
-      await db.hrSamples.bulkPut(hr.value);
-      setStatus(`Imported ${String(hr.value.length)} HR samples from Gadgetbridge.`);
-    }
+    const counts = await importAll(provider, range, db);
+    setStatus(
+      `Imported ${String(counts.hr)} HR samples, ${String(counts.workouts)} workouts, ${String(counts.steps)} step rows from Gadgetbridge.`,
+    );
   }
 
   async function pushRecovery(): Promise<void> {

@@ -13,6 +13,7 @@ import {
   type RecoveryNotificationInput,
   type SleepSegment,
   type Spo2Sample,
+  type StepSample,
   type StressSample,
   type TimeRange,
   type WatchDataProvider,
@@ -131,6 +132,20 @@ export class SimulatedWatchProvider implements WatchDataProvider {
     return ok(
       this.dataset.workouts.filter((workout) => workout.start < end && workout.end > start),
     );
+  }
+
+  async getStepSamples(range: TimeRange): Promise<Result<StepSample[], WatchProviderError>> {
+    const parsed = TimeRangeSchema.safeParse(range);
+    if (!parsed.success) {
+      return err({ code: 'DECODE_ERROR', message: 'Invalid time range' });
+    }
+    const gate = this.requireConnection();
+    if (gate) {
+      return gate;
+    }
+    await this.pause();
+    // The simulator does not model step counts; return an empty series.
+    return ok([]);
   }
 
   async pushRecoveryNotification(

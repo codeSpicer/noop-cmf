@@ -68,11 +68,13 @@ describe('SimulatedWatchProvider', () => {
     const spo2 = await provider.getSpo2Samples(range);
     const sleep = await provider.getSleepSegments(range);
     const workouts = await provider.getWorkouts(range);
+    const steps = await provider.getStepSamples(range);
     expect(hr.ok ? hr.value.length : -1).toBe(30 * 1440);
     expect(stress.ok ? stress.value.length : -1).toBeGreaterThan(0);
     expect(spo2.ok ? spo2.value.length : -1).toBeGreaterThan(0);
     expect(sleep.ok ? sleep.value.length : -1).toBeGreaterThan(0);
     expect(workouts.ok ? workouts.value.length : -1).toBeGreaterThan(0);
+    expect(steps.ok ? steps.value : ['unexpected']).toEqual([]);
   });
 
   it('filters to the requested range', async () => {
@@ -106,6 +108,7 @@ describe('SimulatedWatchProvider', () => {
       await provider.getSpo2Samples(invalid),
       await provider.getSleepSegments(invalid),
       await provider.getWorkouts(invalid),
+      await provider.getStepSamples(invalid),
     ]) {
       expect(query.ok).toBe(false);
       if (!query.ok) {
@@ -114,7 +117,7 @@ describe('SimulatedWatchProvider', () => {
     }
   });
 
-  it('rejects sleep and workout queries when disconnected', async () => {
+  it('rejects sleep, workout, and step queries when disconnected', async () => {
     const provider = new SimulatedWatchProvider({
       persona: 'endurance-runner',
       anchorEpochMs: ANCHOR,
@@ -123,6 +126,8 @@ describe('SimulatedWatchProvider', () => {
     expect(sleep.ok).toBe(false);
     const workouts = await provider.getWorkouts(fullRange());
     expect(workouts.ok).toBe(false);
+    const steps = await provider.getStepSamples(fullRange());
+    expect(steps.ok).toBe(false);
   });
 
   it('records recovery notifications and validates payloads', async () => {

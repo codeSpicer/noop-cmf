@@ -49,17 +49,32 @@ describe('NoopCmfDatabase', () => {
     }
   });
 
+  it('stores step samples', async () => {
+    const db = new NoopCmfDatabase(`test-steps-${String(Date.now())}`);
+    try {
+      const timestamp = EpochMsSchema.parse(1_700_000_000_000);
+      await db.steps.put({ timestamp, steps: 420 });
+      const rows = await db.steps.toArray();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.steps).toBe(420);
+    } finally {
+      db.close();
+    }
+  });
+
   it('clearDatabase empties every table', async () => {
     const db = new NoopCmfDatabase(`test-clear-${String(Date.now())}`);
     try {
       const timestamp = EpochMsSchema.parse(1_700_000_000_000);
       await db.hrSamples.put({ timestamp, bpm: BpmSchema.parse(70) });
       await db.journalEntries.put({ date: '2024-01-02', habits: {} });
+      await db.steps.put({ timestamp, steps: 100 });
       await clearDatabase(db);
       expect(await db.hrSamples.count()).toBe(0);
       expect(await db.journalEntries.count()).toBe(0);
       expect(await db.workouts.count()).toBe(0);
       expect(await db.cycles.count()).toBe(0);
+      expect(await db.steps.count()).toBe(0);
     } finally {
       db.close();
     }

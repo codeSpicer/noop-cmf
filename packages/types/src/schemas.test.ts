@@ -14,6 +14,7 @@ import {
   SLEEP_PERFORMANCE_MIN,
   SleepSegmentSchema,
   Spo2SampleSchema,
+  StepSampleSchema,
   StressSampleSchema,
   TimeRangeSchema,
   WatchProviderErrorSchema,
@@ -104,6 +105,26 @@ describe('Spo2SampleSchema', () => {
     expect(Spo2SampleSchema.safeParse({ timestamp: T0, spo2: 97.5 }).success).toBe(false);
     expect(Spo2SampleSchema.safeParse({ timestamp: T0 }).success).toBe(false);
     expect(Spo2SampleSchema.safeParse({ timestamp: Number.NaN, spo2: 98 }).success).toBe(false);
+  });
+});
+
+describe('StepSampleSchema', () => {
+  it('accepts a valid non-negative integer step count', () => {
+    expect(StepSampleSchema.parse({ timestamp: T0, steps: 0 })).toEqual({
+      timestamp: T0,
+      steps: 0,
+    });
+    expect(StepSampleSchema.parse({ timestamp: T0, steps: 420 })).toEqual({
+      timestamp: T0,
+      steps: 420,
+    });
+  });
+
+  it('rejects negative, fractional, and missing steps', () => {
+    expect(StepSampleSchema.safeParse({ timestamp: T0, steps: -1 }).success).toBe(false);
+    expect(StepSampleSchema.safeParse({ timestamp: T0, steps: 1.5 }).success).toBe(false);
+    expect(StepSampleSchema.safeParse({ timestamp: T0 }).success).toBe(false);
+    expect(StepSampleSchema.safeParse({ timestamp: Number.NaN, steps: 1 }).success).toBe(false);
   });
 });
 

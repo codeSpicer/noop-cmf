@@ -8,6 +8,7 @@ import type {
   RecoveryNotificationInput,
   SleepSegment,
   Spo2Sample,
+  StepSample,
   StressSample,
   TimeRange,
   WatchProviderError,
@@ -41,6 +42,9 @@ export interface WatchDataProvider {
 
   /** Workouts overlapping the range, ascending by start time. */
   getWorkouts(range: TimeRange): Promise<Result<Workout[], WatchProviderError>>;
+
+  /** Step-count samples overlapping the range, ascending by timestamp. */
+  getStepSamples(range: TimeRange): Promise<Result<StepSample[], WatchProviderError>>;
 
   /** Push the morning recovery payload back to the watch display. */
   pushRecoveryNotification(

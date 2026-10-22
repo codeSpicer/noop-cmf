@@ -27,6 +27,7 @@ import {
   type SleepSegment,
   type SleepStage,
   type Spo2Sample,
+  type StepSample,
   type StressSample,
   type TimeRange,
   type WatchDataProvider,
@@ -118,7 +119,7 @@ export interface ParsedGadgetbridge {
   readonly spo2Samples: Spo2Sample[];
   readonly sleepSegments: SleepSegment[];
   readonly workouts: Workout[];
-  readonly steps: Array<{ readonly timestamp: EpochMs; readonly steps: number }>;
+  readonly steps: StepSample[];
 }
 
 /** Location of the sql.js WASM binary served from the web app. */
@@ -324,7 +325,7 @@ export async function parseGadgetbridgeFile(file: Uint8Array): Promise<ParsedGad
           if (timestamp === undefined) {
             return;
           }
-          if (typeof row[1] === 'number' && Number.isFinite(row[1]) && row[1] !== 0) {
+          if (typeof row[1] === 'number' && Number.isInteger(row[1]) && row[1] > 0) {
             parsed.steps.push({ timestamp, steps: row[1] });
           }
         },
@@ -524,6 +525,12 @@ export class GadgetbridgeSqliteProvider implements WatchDataProvider {
           (workout) => workout.start < end && workout.end > start,
         ),
       ),
+    );
+  }
+
+  getStepSamples(range: TimeRange): Promise<Result<StepSample[], WatchProviderError>> {
+    return Promise.resolve(
+      this.slice(this.dataset?.steps ?? [], range, (sample) => sample.timestamp),
     );
   }
 

@@ -285,6 +285,7 @@ describe('GadgetbridgeSqliteProvider', () => {
         },
       ],
       sleepStages: [{ timestampMs: start, durationSeconds: 3600, stage: 2 }],
+      activities: [{ timestampSeconds: T0_S, steps: 500 }],
       workoutSummaries: [
         { name: 'run', startSeconds: T0_S, endSeconds: T0_S + 1800, activityKind: 0x10 },
       ],
@@ -304,6 +305,9 @@ describe('GadgetbridgeSqliteProvider', () => {
     expect(sleep.ok ? sleep.value.length : -1).toBe(1);
     const workouts = await provider.getWorkouts(range);
     expect(workouts.ok ? workouts.value.length : -1).toBe(1);
+    const steps = await provider.getStepSamples(range);
+    expect(steps.ok ? steps.value.length : -1).toBe(1);
+    expect(steps.ok ? steps.value[0]?.steps : -1).toBe(500);
     expect((await provider.disconnect()).ok).toBe(true);
   });
 
@@ -323,6 +327,7 @@ describe('GadgetbridgeSqliteProvider', () => {
     expect((await provider.getHeartRateSamples(bad)).ok).toBe(false);
     expect((await provider.getSleepSegments(bad)).ok).toBe(false);
     expect((await provider.getWorkouts(bad)).ok).toBe(false);
+    expect((await provider.getStepSamples(bad)).ok).toBe(false);
   });
 
   it('reports NOT_SUPPORTED for watch push', async () => {

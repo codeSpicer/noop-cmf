@@ -47,6 +47,7 @@ export async function handleWorkerRequest(request: WorkerRequest): Promise<Worke
           spo2Count: parsed.spo2Samples.length,
           sleepCount: parsed.sleepSegments.length,
           workoutCount: parsed.workouts.length,
+          stepCount: parsed.steps.length,
         },
       };
     }

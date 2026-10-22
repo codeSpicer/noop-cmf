@@ -42,6 +42,13 @@ export const Spo2SampleSchema = z.object({
 });
 export type Spo2Sample = z.infer<typeof Spo2SampleSchema>;
 
+/** Single step-count observation. */
+export const StepSampleSchema = z.object({
+  timestamp: EpochMsSchema,
+  steps: z.number().int().nonnegative(),
+});
+export type StepSample = z.infer<typeof StepSampleSchema>;
+
 /** Contiguous block of one sleep stage. End must be strictly after start. */
 export const SleepSegmentSchema = z
   .object({

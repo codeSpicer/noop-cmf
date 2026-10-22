@@ -9,6 +9,7 @@ import type {
   PhysiologicalCycle,
   SleepSegment,
   Spo2Sample,
+  StepSample,
   StressSample,
   Workout,
 } from '@noop-cmf/types';
@@ -21,6 +22,7 @@ export class NoopCmfDatabase extends Dexie {
   hrSamples!: Table<HrSample, number>;
   stressSamples!: Table<StressSample, number>;
   spo2Samples!: Table<Spo2Sample, number>;
+  steps!: Table<StepSample, number>;
   sleepSegments!: Table<SleepSegment, number>;
   workouts!: Table<Workout, string>;
   journalEntries!: Table<JournalEntry, string>;
@@ -36,6 +38,9 @@ export class NoopCmfDatabase extends Dexie {
       workouts: 'id, start, end',
       journalEntries: 'date',
       cycles: 'id, startWake',
+    });
+    this.version(2).stores({
+      steps: 'timestamp',
     });
   }
 }
@@ -62,6 +67,7 @@ export async function clearDatabase(db: NoopCmfDatabase): Promise<void> {
       db.hrSamples,
       db.stressSamples,
       db.spo2Samples,
+      db.steps,
       db.sleepSegments,
       db.workouts,
       db.journalEntries,
@@ -72,6 +78,7 @@ export async function clearDatabase(db: NoopCmfDatabase): Promise<void> {
         db.hrSamples.clear(),
         db.stressSamples.clear(),
         db.spo2Samples.clear(),
+        db.steps.clear(),
         db.sleepSegments.clear(),
         db.workouts.clear(),
         db.journalEntries.clear(),
