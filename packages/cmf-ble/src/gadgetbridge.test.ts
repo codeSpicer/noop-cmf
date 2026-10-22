@@ -10,9 +10,11 @@ import {
   SpO2PercentSchema,
   StrainScoreSchema,
 } from '@noop-cmf/types';
-import type { SleepSegment, TimeRange } from '@noop-cmf/types';
+import type { SleepStage, TimeRange } from '@noop-cmf/types';
 import {
+  activityKindName,
   buildGadgetbridgeFixture,
+  decodeCmfStage,
   GadgetbridgeSqliteProvider,
   GADGETBRIDGE_PROVIDER_ID,
   GADGETBRIDGE_PROVIDER_LABEL,
@@ -21,34 +23,66 @@ import {
   parseGadgetbridgeFile,
 } from './gadgetbridge.js';
 
-const T0 = 1_700_000_000_000;
+const T0_MS = 1_700_000_000_000;
+const T0_S = Math.floor(T0_MS / 1000);
+
+function fixturePath(name: string): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  return path.join(here, '..', 'fixtures', name);
+}
+
+describe('decodeCmfStage', () => {
+  it('maps 1/2/3 to deep/light/rem per Gadgetbridge', () => {
+    expect(decodeCmfStage(1)).toBe('deep');
+    expect(decodeCmfStage(2)).toBe('light');
+    expect(decodeCmfStage(3)).toBe('rem');
+  });
+
+  it('returns undefined for unknown stages', () => {
+    expect(decodeCmfStage(0)).toBeUndefined();
+    expect(decodeCmfStage(4)).toBeUndefined();
+    expect(decodeCmfStage('deep')).toBeUndefined();
+    expect(decodeCmfStage(null)).toBeUndefined();
+  });
+});
+
+describe('activityKindName', () => {
+  it('names every documented workout kind', () => {
+    expect(activityKindName(0x00000010)).toBe('run');
+    expect(activityKindName(0x00000020)).toBe('walk');
+    expect(activityKindName(0x00000040)).toBe('swim');
+    expect(activityKindName(0x00000080)).toBe('cycling');
+    expect(activityKindName(0x00000100)).toBe('treadmill');
+    expect(activityKindName(0x00000200)).toBe('exercise');
+    expect(activityKindName(0x00004000)).toBe('yoga');
+    expect(activityKindName(0x00200000)).toBe('strength');
+    expect(activityKindName(0x04000010)).toBe('cardio');
+    expect(activityKindName(0x04000045)).toBe('hiit');
+  });
+
+  it('falls back to workout for unknown kinds', () => {
+    expect(activityKindName(0)).toBe('workout');
+    expect(activityKindName(0xdeadbeef)).toBe('workout');
+  });
+});
 
 describe('buildGadgetbridgeFixture and parseGadgetbridgeFile', () => {
-  it('round-trips HR, stress, SpO2, sleep, and workouts', async () => {
-    const start = EpochMsSchema.parse(T0);
-    const end = EpochMsSchema.parse(T0 + 30 * 60_000);
-    const sleep: SleepSegment[] = [
-      { start, end: EpochMsSchema.parse(T0 + 7 * 3_600_000), stage: 'deep' },
-    ];
+  it('round-trips HR, stress, SpO2, sleep stages, and summaries', async () => {
+    const start = EpochMsSchema.parse(T0_MS);
     const file = await buildGadgetbridgeFixture({
       deviceName: 'CMF Watch Pro 2',
       points: [
         {
-          timestamp: start,
+          timestampMs: start,
           bpm: BpmSchema.parse(72),
           stress: 30,
           spo2: SpO2PercentSchema.parse(98),
         },
       ],
-      sleep,
-      workouts: [
-        {
-          start,
-          end,
-          activityType: 'run',
-          averageHeartRate: BpmSchema.parse(150),
-          calories: 320,
-        },
+      sleepStages: [{ timestampMs: start, durationSeconds: 3600, stage: 2 }],
+      activities: [{ timestampSeconds: T0_S, steps: 11953, rawKind: 0, heartRate: 80 }],
+      workoutSummaries: [
+        { name: 'Morning run', startSeconds: T0_S, endSeconds: T0_S + 1800, activityKind: 0x10 },
       ],
     });
     const parsed = await parseGadgetbridgeFile(file);
@@ -58,33 +92,45 @@ describe('buildGadgetbridgeFixture and parseGadgetbridgeFile', () => {
     expect(parsed.stressSamples[0]?.stress).toBe(30);
     expect(parsed.spo2Samples).toHaveLength(1);
     expect(parsed.spo2Samples[0]?.spo2).toBe(98);
-    expect(parsed.sleepSegments).toEqual(sleep);
+    expect(parsed.sleepSegments).toHaveLength(1);
+    expect(parsed.sleepSegments[0]?.stage).toBe('light');
+    expect(parsed.sleepSegments[0]?.end).toBe(T0_MS + 3_600_000);
     expect(parsed.workouts).toHaveLength(1);
     expect(parsed.workouts[0]?.activityType).toBe('run');
+    expect(parsed.workouts[0]?.start).toBe(T0_MS);
+    expect(parsed.steps).toHaveLength(1);
+    expect(parsed.steps[0]?.steps).toBe(11953);
   });
 
-  it('builds an empty database without rows', async () => {
-    const file = await buildGadgetbridgeFixture();
-    const parsed = await parseGadgetbridgeFile(file);
-    expect(parsed.hrSamples).toEqual([]);
-    expect(parsed.workouts).toEqual([]);
+  it('maps every CMF sleep stage byte', () => {
+    const stages: Array<[number, SleepStage]> = [
+      [1, 'deep'],
+      [2, 'light'],
+      [3, 'rem'],
+    ];
+    for (const [byte, stage] of stages) {
+      expect(decodeCmfStage(byte)).toBe(stage);
+    }
   });
 
   it('skips out-of-range rows instead of aborting', async () => {
-    const start = EpochMsSchema.parse(T0);
+    const start = EpochMsSchema.parse(T0_MS);
+    const later = EpochMsSchema.parse(T0_MS + 60_000);
     const file = await buildGadgetbridgeFixture({
       points: [
-        { timestamp: start, bpm: BpmSchema.parse(72) },
-        {
-          timestamp: start,
-          bpm: 999,
-        },
-        { timestamp: start, stress: 500 },
+        { timestampMs: start, bpm: BpmSchema.parse(72) },
+        { timestampMs: later, bpm: 999 },
+        { timestampMs: EpochMsSchema.parse(T0_MS + 120_000), stress: 500 },
+      ],
+      sleepStages: [
+        { timestampMs: start, durationSeconds: 3600, stage: 9 },
+        { timestampMs: later, durationSeconds: -5, stage: 2 },
       ],
     });
     const parsed = await parseGadgetbridgeFile(file);
     expect(parsed.hrSamples).toHaveLength(1);
     expect(parsed.stressSamples).toHaveLength(0);
+    expect(parsed.sleepSegments).toHaveLength(0);
   });
 
   it('rejects garbage bytes', async () => {
@@ -94,33 +140,61 @@ describe('buildGadgetbridgeFixture and parseGadgetbridgeFile', () => {
     expect((await provider.getHeartRateSamples(bad)).ok).toBe(false);
   });
 
-  it('tolerates corrupt rows, unknown stages, and extra activity kinds', async () => {
+  it('tolerates databases without CMF tables', async () => {
+    const SQL = await loadSqlJs();
+    const db = new SQL.Database();
+    try {
+      db.run('CREATE TABLE misc (id INTEGER)');
+      const file = db.export();
+      const parsed = await parseGadgetbridgeFile(file);
+      expect(parsed.hrSamples).toEqual([]);
+      expect(parsed.stressSamples).toEqual([]);
+      expect(parsed.spo2Samples).toEqual([]);
+      expect(parsed.sleepSegments).toEqual([]);
+      expect(parsed.workouts).toEqual([]);
+      expect(parsed.steps).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('tolerates corrupt rows and unknown activity kinds', async () => {
     const SQL = await loadSqlJs();
     const db = new SQL.Database();
     try {
       db.run(GADGETBRIDGE_SCHEMA_SQL);
-      db.run("INSERT INTO device (id, name, alias) VALUES (1, 'edge', 'e')");
-      db.run('INSERT INTO heartrate (id, device_id, timestamp, bpm) VALUES (1, 1, -5, 70)');
-      db.run("INSERT INTO heartrate (id, device_id, timestamp, bpm) VALUES (2, 1, 'oops', 70)");
-      db.run('INSERT INTO stress (id, device_id, timestamp, stress) VALUES (3, 1, 1700000000, 50)');
-      db.run('INSERT INTO spo2 (id, device_id, timestamp, spo2) VALUES (4, 1, 1700000000, 300)');
       db.run(
-        "INSERT INTO sleep (id, device_id, start_ts, end_ts, stage) VALUES (5, 1, 1700000000, 1699999999, 'deep')",
+        "INSERT INTO DEVICE (_id, NAME, MANUFACTURER, IDENTIFIER, TYPE, TYPE_NAME) VALUES (1, 'edge', 'Nothing', 'x', 0, 'NOTHING_CMF_WATCH_PRO_2')",
       );
       db.run(
-        "INSERT INTO sleep (id, device_id, start_ts, end_ts, stage) VALUES (6, 1, 1700000000, 1700003600, 'drowsy')",
+        'INSERT INTO CMF_HEART_RATE_SAMPLE (TIMESTAMP, DEVICE_ID, USER_ID, HEART_RATE) VALUES (-5, 1, 1, 70)',
       );
       db.run(
-        'INSERT INTO activity (id, device_id, timestamp, activitykind, steps, heartrate) VALUES (7, 1, -10, 2, 0, 120)',
+        "INSERT INTO CMF_HEART_RATE_SAMPLE (TIMESTAMP, DEVICE_ID, USER_ID, HEART_RATE) VALUES ('oops', 1, 1, 70)",
       );
       db.run(
-        'INSERT INTO activity (id, device_id, timestamp, activitykind, steps, heartrate) VALUES (8, 1, 1700000000, 2, 0, 120)',
+        'INSERT INTO CMF_STRESS_SAMPLE (TIMESTAMP, DEVICE_ID, USER_ID, STRESS) VALUES (1700000000000, 1, 1, 50)',
       );
       db.run(
-        'INSERT INTO activity (id, device_id, timestamp, activitykind, steps, heartrate) VALUES (9, 1, 1700003600, 3, 0, NULL)',
+        'INSERT INTO CMF_SPO2_SAMPLE (TIMESTAMP, DEVICE_ID, USER_ID, SPO2) VALUES (1700000000000, 1, 1, 300)',
       );
       db.run(
-        'INSERT INTO activity (id, device_id, timestamp, activitykind, steps, heartrate) VALUES (10, 1, 1700007200, 9, 0, 130)',
+        'INSERT INTO CMF_SLEEP_STAGE_SAMPLE (TIMESTAMP, DEVICE_ID, USER_ID, DURATION, STAGE) VALUES (1700000000000, 1, 1, 3600, 9)',
+      );
+      db.run(
+        'INSERT INTO CMF_ACTIVITY_SAMPLE (TIMESTAMP, DEVICE_ID, USER_ID, RAW_INTENSITY, STEPS, RAW_KIND, HEART_RATE) VALUES (-10, 1, 1, 0, 100, 0, 70)',
+      );
+      db.run(
+        'INSERT INTO BASE_ACTIVITY_SUMMARY (_id, START_TIME, END_TIME, OVERRIDE_ACTIVITY_KIND, ACTIVITY_KIND, DEVICE_ID, USER_ID) VALUES (1, 1700000000, 1700003600, 16, 16, 1, 1)',
+      );
+      db.run(
+        'INSERT INTO BASE_ACTIVITY_SUMMARY (_id, START_TIME, END_TIME, OVERRIDE_ACTIVITY_KIND, ACTIVITY_KIND, DEVICE_ID, USER_ID) VALUES (2, 1700003600, 1700003400, 16, 16, 1, 1)',
+      );
+      db.run(
+        'INSERT INTO BASE_ACTIVITY_SUMMARY (_id, START_TIME, END_TIME, OVERRIDE_ACTIVITY_KIND, ACTIVITY_KIND, DEVICE_ID, USER_ID) VALUES (3, 1700007200, 1700010800, 999, 999, 1, 1)',
+      );
+      db.run(
+        'INSERT INTO BASE_ACTIVITY_SUMMARY (_id, START_TIME, END_TIME, OVERRIDE_ACTIVITY_KIND, ACTIVITY_KIND, DEVICE_ID, USER_ID) VALUES (4, -50, 1700010800, 16, 16, 1, 1)',
       );
       const file = db.export();
       const parsed = await parseGadgetbridgeFile(file);
@@ -128,11 +202,7 @@ describe('buildGadgetbridgeFixture and parseGadgetbridgeFile', () => {
       expect(parsed.stressSamples).toHaveLength(1);
       expect(parsed.spo2Samples).toEqual([]);
       expect(parsed.sleepSegments).toEqual([]);
-      expect(parsed.workouts.map((workout) => workout.activityType)).toEqual([
-        'cycling',
-        'swim',
-        'workout',
-      ]);
+      expect(parsed.workouts.map((workout) => workout.activityType)).toEqual(['run', 'workout']);
     } finally {
       db.close();
     }
@@ -141,9 +211,8 @@ describe('buildGadgetbridgeFixture and parseGadgetbridgeFile', () => {
 
 describe('live GATT fixture', () => {
   it('matches the UUID constants used by the protocol layer', () => {
-    const here = path.dirname(fileURLToPath(import.meta.url));
     const fixture = JSON.parse(
-      fs.readFileSync(path.join(here, '..', 'fixtures', 'cmf-watch-pro-2-gatt.json'), 'utf8'),
+      fs.readFileSync(fixturePath('cmf-watch-pro-2-gatt.json'), 'utf8'),
     ) as {
       deviceName: string;
       mtu: number;
@@ -169,36 +238,61 @@ describe('live GATT fixture', () => {
   });
 });
 
+describe('real Gadgetbridge export', () => {
+  it('parses the live watch database', async () => {
+    const file = new Uint8Array(fs.readFileSync(fixturePath('real-gadgetbridge-cmf-pro2.db')));
+    const parsed = await parseGadgetbridgeFile(file);
+    expect(parsed.hrSamples.length).toBe(15);
+    expect(parsed.stressSamples.length).toBe(2);
+    expect(parsed.spo2Samples.length).toBe(2);
+    expect(parsed.steps.length).toBeGreaterThanOrEqual(0);
+    for (const sample of parsed.hrSamples) {
+      expect(sample.bpm).toBeGreaterThanOrEqual(25);
+      expect(sample.bpm).toBeLessThanOrEqual(240);
+    }
+    expect(parsed.hrSamples.map((sample) => sample.timestamp)).toEqual(
+      [...parsed.hrSamples.map((sample) => sample.timestamp)].sort((a, b) => a - b),
+    );
+  });
+
+  it('loads the live database through the provider', async () => {
+    const provider = new GadgetbridgeSqliteProvider();
+    const file = new Uint8Array(fs.readFileSync(fixturePath('real-gadgetbridge-cmf-pro2.db')));
+    expect((await provider.loadFile(file)).ok).toBe(true);
+    const range = {
+      start: EpochMsSchema.parse(1_700_000_000_000),
+      end: EpochMsSchema.parse(1_800_000_000_000),
+    };
+    const hr = await provider.getHeartRateSamples(range);
+    expect(hr.ok ? hr.value.length : -1).toBe(15);
+  });
+});
+
 describe('GadgetbridgeSqliteProvider', () => {
   it('exposes provider identity and loads fixture files', async () => {
     const provider = new GadgetbridgeSqliteProvider();
     expect(provider.id).toBe(GADGETBRIDGE_PROVIDER_ID);
     expect(provider.label).toBe(GADGETBRIDGE_PROVIDER_LABEL);
     expect((await provider.connect()).ok).toBe(true);
-    const start = EpochMsSchema.parse(T0);
+    const start = EpochMsSchema.parse(T0_MS);
     const file = await buildGadgetbridgeFixture({
       points: [
         {
-          timestamp: start,
+          timestampMs: start,
           bpm: BpmSchema.parse(72),
           stress: 30,
           spo2: SpO2PercentSchema.parse(98),
         },
       ],
-      sleep: [{ start, end: EpochMsSchema.parse(T0 + 3_600_000), stage: 'light' }],
-      workouts: [
-        {
-          start,
-          end: EpochMsSchema.parse(T0 + 1_800_000),
-          activityType: 'run',
-          averageHeartRate: BpmSchema.parse(150),
-        },
+      sleepStages: [{ timestampMs: start, durationSeconds: 3600, stage: 2 }],
+      workoutSummaries: [
+        { name: 'run', startSeconds: T0_S, endSeconds: T0_S + 1800, activityKind: 0x10 },
       ],
     });
     expect((await provider.loadFile(file)).ok).toBe(true);
     const range = {
-      start: EpochMsSchema.parse(T0 - 3_600_000),
-      end: EpochMsSchema.parse(T0 + 10 * 86_400_000),
+      start: EpochMsSchema.parse(T0_MS - 3_600_000),
+      end: EpochMsSchema.parse(T0_MS + 10 * 86_400_000),
     };
     const hr = await provider.getHeartRateSamples(range);
     expect(hr.ok ? hr.value.length : -1).toBe(1);
@@ -215,14 +309,17 @@ describe('GadgetbridgeSqliteProvider', () => {
 
   it('returns empty arrays before any file is loaded', async () => {
     const provider = new GadgetbridgeSqliteProvider();
-    const range = { start: EpochMsSchema.parse(T0), end: EpochMsSchema.parse(T0 + 3_600_000) };
+    const range = {
+      start: EpochMsSchema.parse(T0_MS),
+      end: EpochMsSchema.parse(T0_MS + 3_600_000),
+    };
     const hr = await provider.getHeartRateSamples(range);
     expect(hr.ok ? hr.value : ['unexpected']).toEqual([]);
   });
 
   it('rejects inverted ranges', async () => {
     const provider = new GadgetbridgeSqliteProvider();
-    const bad = { start: EpochMsSchema.parse(T0), end: EpochMsSchema.parse(T0 - 1) };
+    const bad = { start: EpochMsSchema.parse(T0_MS), end: EpochMsSchema.parse(T0_MS - 1) };
     expect((await provider.getHeartRateSamples(bad)).ok).toBe(false);
     expect((await provider.getSleepSegments(bad)).ok).toBe(false);
     expect((await provider.getWorkouts(bad)).ok).toBe(false);

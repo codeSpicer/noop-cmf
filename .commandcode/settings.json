@@ -13,7 +13,11 @@
       "Shell(python3 --version 2>&1; python3 -c \"import bleak; print('bleak', bleak.__version__)\" 2>&1; ls /Applications | grep -iE \"chrome|firefox\" 2>&1)",
       "Shell(python3 -m venv /ble-probe)",
       "Shell(/ble-probe/bin/pip:*)",
-      "Shell(/ble-probe/bin/python:*)"
+      "Shell(/ble-probe/bin/python:*)",
+      "Shell(sqlite3:*)",
+      "Shell(adb:*)",
+      "Shell(sqlite3 packages/cmf-ble/fixtures/real-gadgetbridge-cmf-pro2.db \"SELECT sql FROM sqlite_master WHERE type='table' AND name LIKE 'CMF%';\" 2>&1; echo '--- sample duration/stage values:'; sqlite3 packages/cmf-ble/fixtures/real-gadgetbridge-cmf-pro2.db \"SELECT DISTINCT STAGE FROM CMF_SLEEP_STAGE_SAMPLE; SELECT DISTINCT RAW_KIND FROM CMF_ACTIVITY_SAMPLE;\" 2>&1; echo '--- METADATA sample:'; sqlite3 packages/cmf-ble/fixtures/real-gadgetbridge-cmf-pro2.db \"SELECT METADATA FROM CMF_SLEEP_SESSION_SAMPLE LIMIT 1;\" 2>&1; echo '--- SUMMARY_DATA:'; sqlite3 packages/cmf-ble/fixtures/real-gadgetbridge-cmf-pro2.db \"SELECT _id, NAME, ACTIVITY_KIND, SUMMARY_DATA FROM BASE_ACTIVITY_SUMMARY LIMIT 2;\" 2>&1)",
+      "Shell(cd \"$COMMANDCODE_SCRATCHPAD/gb-source\" && git log --oneline -3 2>&1; grep -rl \"CmfWatchPro2\\|CMF_WATCH_PRO_2\\|NOTHING_CMF\" app/src/main/java --include=\"*.java\" | head -10)"
     ],
     "deny": [],
     "defaultMode": "default"

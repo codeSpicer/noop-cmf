@@ -5,5 +5,10 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 *.local
+# Raw Gadgetbridge exports (may contain pairing auth keys in preferences/)
+gadgetbridge_*/
+# Sanitized fixture DBs are committed intentionally via git add -f
+*.db
+!packages/*/fixtures/*.db
 apps/web/.next/
 apps/web/out/
