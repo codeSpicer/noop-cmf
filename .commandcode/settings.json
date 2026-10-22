@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(pnpm:*)",
+      "Shell(pnpm --filter @noop-cmf/types run build 2>&1; echo \"BUILD_EXIT=$?\")",
+      "Shell(ls node_modules/.pnpm/zod@3.25.76/node_modules/zod/ 2>&1; echo \"---\"; ls packages/types/node_modules/ 2>&1)",
+      "Shell(git config user.name 2>&1; git config user.email 2>&1; echo \"---\"; git init 2>&1 && git add -A && git status --short | head -30)",
+      "Shell(git:*)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}
