@@ -15,4 +15,10 @@ describe('SleepPage', () => {
     });
     expect(screen.getByTestId('sleep-need')).toBeInTheDocument();
   }, 30000);
+
+  it('shows a helpful error outside demo mode', async () => {
+    window.history.replaceState({}, '', '/sleep');
+    render(<SleepPage />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('demo mode');
+  });
 });

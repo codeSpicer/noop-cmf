@@ -16,4 +16,10 @@ describe('RecoveryPage', () => {
     expect(screen.getByTestId('ehrv-value')).toBeInTheDocument();
     expect(screen.getByTestId('rhr-value')).toBeInTheDocument();
   }, 30000);
+
+  it('shows a helpful error outside demo mode', async () => {
+    window.history.replaceState({}, '', '/recovery');
+    render(<RecoveryPage />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('demo mode');
+  });
 });

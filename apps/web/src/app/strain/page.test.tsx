@@ -15,4 +15,10 @@ describe('StrainPage', () => {
     });
     expect(screen.getByTestId('zone-bars')).toBeInTheDocument();
   }, 30000);
+
+  it('shows a helpful error outside demo mode', async () => {
+    window.history.replaceState({}, '', '/strain');
+    render(<StrainPage />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('demo mode');
+  });
 });

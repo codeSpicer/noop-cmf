@@ -3,27 +3,44 @@
 import { useEffect, useState } from 'react';
 import { computeOvernightMetrics, computeRecovery } from '@noop-cmf/physio-engine';
 import { EpochMsSchema } from '@noop-cmf/types';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Sparkline } from '@/components/charts/Sparkline';
 import { createDemoProvider, isDemoMode } from '@/lib/demo-provider';
+import { errorMessage } from '@/lib/errors';
+
+const NO_DEMO_MESSAGE = 'Connect a watch or enable demo mode (?demo=true).';
 
 /** Recovery route: 30-day RHR/eHRV baseline bands and score. */
 export default function RecoveryPage() {
   const [recovery, setRecovery] = useState<number | null>(null);
   const [ehrv, setEhrv] = useState<number | null>(null);
   const [rhr, setRhr] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load(): Promise<void> {
-      if (!isDemoMode(window.location.search)) {
-        return;
-      }
-      const provider = await createDemoProvider(window.location.search);
-      const end = EpochMsSchema.parse(Date.UTC(2024, 0, 30));
-      const start = EpochMsSchema.parse(end - 86_400_000);
-      const hr = await provider.getHeartRateSamples({ start, end });
-      const sleep = await provider.getSleepSegments({ start, end });
-      if (hr.ok && sleep.ok && !cancelled) {
+      try {
+        if (!isDemoMode(window.location.search)) {
+          if (!cancelled) setError(NO_DEMO_MESSAGE);
+          return;
+        }
+        const provider = await createDemoProvider(window.location.search);
+        const end = EpochMsSchema.parse(Date.UTC(2024, 0, 30));
+        const start = EpochMsSchema.parse(end - 86_400_000);
+        const hr = await provider.getHeartRateSamples({ start, end });
+        const sleep = await provider.getSleepSegments({ start, end });
+        if (cancelled) {
+          return;
+        }
+        if (!hr.ok) {
+          setError(hr.error.message);
+          return;
+        }
+        if (!sleep.ok) {
+          setError(sleep.error.message);
+          return;
+        }
         const overnight = computeOvernightMetrics(hr.value, [], sleep.value, 50);
         const score = computeRecovery({
           ehrvToday: overnight.ehrv,
@@ -34,6 +51,10 @@ export default function RecoveryPage() {
         setRecovery(score);
         setEhrv(overnight.ehrv);
         setRhr(overnight.restingHeartRate);
+      } catch (err) {
+        if (!cancelled) {
+          setError(errorMessage(err, 'Failed to load recovery.'));
+        }
       }
     }
     void load();
@@ -42,6 +63,9 @@ export default function RecoveryPage() {
     };
   }, []);
 
+  if (error) {
+    return <p role="alert">{error}</p>;
+  }
   if (recovery === null || ehrv === null || rhr === null) {
     return <p aria-busy="true">Loading recovery…</p>;
   }
@@ -64,13 +88,15 @@ export default function RecoveryPage() {
           </p>
         </div>
       </div>
-      <div className="rounded-2xl border border-line bg-card p-4">
-        <Sparkline
-          values={[rhr - 2, rhr, rhr + 1, rhr - 1, rhr]}
-          color="#00F19F"
-          label="RHR baseline band"
-        />
-      </div>
+      <ErrorBoundary>
+        <div className="rounded-2xl border border-line bg-card p-4">
+          <Sparkline
+            values={[rhr - 2, rhr, rhr + 1, rhr - 1, rhr]}
+            color="#00F19F"
+            label="RHR baseline band"
+          />
+        </div>
+      </ErrorBoundary>
     </section>
   );
 }
