@@ -32,15 +32,15 @@ function fixturePath(name: string): string {
 }
 
 describe('decodeCmfStage', () => {
-  it('maps 1/2/3 to deep/light/rem per Gadgetbridge', () => {
+  it('maps 1/2/3/4 to deep/light/rem/awake per Gadgetbridge', () => {
     expect(decodeCmfStage(1)).toBe('deep');
     expect(decodeCmfStage(2)).toBe('light');
     expect(decodeCmfStage(3)).toBe('rem');
+    expect(decodeCmfStage(4)).toBe('awake');
   });
 
   it('returns undefined for unknown stages', () => {
     expect(decodeCmfStage(0)).toBeUndefined();
-    expect(decodeCmfStage(4)).toBeUndefined();
     expect(decodeCmfStage('deep')).toBeUndefined();
     expect(decodeCmfStage(null)).toBeUndefined();
   });
@@ -58,6 +58,11 @@ describe('activityKindName', () => {
     expect(activityKindName(0x00200000)).toBe('strength');
     expect(activityKindName(0x04000010)).toBe('cardio');
     expect(activityKindName(0x04000045)).toBe('hiit');
+    expect(activityKindName(0x00000800)).toBe('indoor-cycling');
+    expect(activityKindName(0x040000b0)).toBe('indoor-running');
+    expect(activityKindName(0x040000b1)).toBe('outdoor-running');
+    expect(activityKindName(0x040000b2)).toBe('outdoor-walking');
+    expect(activityKindName(0x040000b3)).toBe('outdoor-cycling');
   });
 
   it('falls back to workout for unknown kinds', () => {
@@ -107,6 +112,7 @@ describe('buildGadgetbridgeFixture and parseGadgetbridgeFile', () => {
       [1, 'deep'],
       [2, 'light'],
       [3, 'rem'],
+      [4, 'awake'],
     ];
     for (const [byte, stage] of stages) {
       expect(decodeCmfStage(byte)).toBe(stage);

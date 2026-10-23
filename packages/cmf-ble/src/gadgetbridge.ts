@@ -70,6 +70,9 @@ export const CMF_STAGE_LIGHT = 2;
 /** CMF sleep stage byte for REM sleep. */
 export const CMF_STAGE_REM = 3;
 
+/** CMF sleep stage byte for awake during the night. */
+export const CMF_STAGE_AWAKE = 4;
+
 /** One synthetic row used to build fixture databases for tests. */
 export interface FixturePoint {
   readonly timestampMs: EpochMs;
@@ -228,8 +231,8 @@ export async function buildGadgetbridgeFixture(options: FixtureOptions = {}): Pr
         [
           index + 1,
           summary.name ?? null,
-          summary.startSeconds,
-          summary.endSeconds,
+          summary.startSeconds * MS_PER_SECOND,
+          summary.endSeconds * MS_PER_SECOND,
           summary.activityKind,
           summary.activityKind,
         ],
@@ -334,14 +337,16 @@ export async function parseGadgetbridgeFile(file: Uint8Array): Promise<ParsedGad
     if (hasTable(db, 'BASE_ACTIVITY_SUMMARY')) {
       collectRows(
         db,
-        'SELECT _id, NAME, START_TIME, END_TIME, ACTIVITY_KIND FROM BASE_ACTIVITY_SUMMARY ORDER BY START_TIME',
+        'SELECT _id, NAME, START_TIME, END_TIME, OVERRIDE_ACTIVITY_KIND, ACTIVITY_KIND FROM BASE_ACTIVITY_SUMMARY ORDER BY START_TIME',
         (row) => {
-          const start = toEpochMsSeconds(row[2]);
-          const end = toEpochMsSeconds(row[3]);
+          const start = toEpochMs(row[2]);
+          const end = toEpochMs(row[3]);
           if (start === undefined || end === undefined || end <= start) {
             return;
           }
-          const kind = typeof row[4] === 'number' ? row[4] : 0;
+          const overrideKind = typeof row[4] === 'number' ? row[4] : 0;
+          const baseKind = typeof row[5] === 'number' ? row[5] : 0;
+          const kind = overrideKind !== 0 ? overrideKind : baseKind;
           parsed.workouts.push({
             id: `gadgetbridge-${typeof row[0] === 'number' ? String(row[0]) : 'row'}`,
             start,
@@ -394,7 +399,7 @@ function toEpochMsSeconds(value: unknown): EpochMs | undefined {
 /**
  * CMF sleep stage byte → canonical stage.
  * From Gadgetbridge `CmfActivitySampleProvider.sleepStageToActivityKind`:
- * 1 → deep, 2 → light, 3 → rem, everything else unknown.
+ * 1 → deep, 2 → light, 3 → rem, 4 → awake, everything else unknown.
  */
 export function decodeCmfStage(value: unknown): SleepStage | undefined {
   if (value === CMF_STAGE_DEEP) {
@@ -405,6 +410,9 @@ export function decodeCmfStage(value: unknown): SleepStage | undefined {
   }
   if (value === CMF_STAGE_REM) {
     return 'rem';
+  }
+  if (value === CMF_STAGE_AWAKE) {
+    return 'awake';
   }
   return undefined;
 }
@@ -426,6 +434,8 @@ export function activityKindName(kind: number): string {
       return 'treadmill';
     case 0x00000200:
       return 'exercise';
+    case 0x00000800:
+      return 'indoor-cycling';
     case 0x00004000:
       return 'yoga';
     case 0x00200000:
@@ -434,6 +444,14 @@ export function activityKindName(kind: number): string {
       return 'cardio';
     case 0x04000045:
       return 'hiit';
+    case 0x040000b0:
+      return 'indoor-running';
+    case 0x040000b1:
+      return 'outdoor-running';
+    case 0x040000b2:
+      return 'outdoor-walking';
+    case 0x040000b3:
+      return 'outdoor-cycling';
     default:
       return 'workout';
   }
