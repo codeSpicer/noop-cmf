@@ -77,8 +77,8 @@ describe('encodePacket and decodePacket', () => {
 
 describe('chunk budgets', () => {
   it('computes plaintext chunk size from MTU', () => {
-    expect(plaintextChunkSize(CMF_DEFAULT_MTU)).toBe(CMF_DEFAULT_MTU - 20);
-    expect(plaintextChunkSize(247)).toBe(227);
+    expect(plaintextChunkSize(CMF_DEFAULT_MTU)).toBe(CMF_DEFAULT_MTU - 17);
+    expect(plaintextChunkSize(247)).toBe(230);
   });
 
   it('computes encrypted chunk payload size from MTU', () => {

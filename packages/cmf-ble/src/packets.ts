@@ -23,8 +23,11 @@ export const CMF_AES_IV = new Uint8Array([
 /** Negotiated ATT MTU observed on the live watch. */
 export const CMF_DEFAULT_MTU = 247;
 
-/** Plaintext chunk budget: MTU minus 20 bytes of ATT/GATT overhead. */
-export const PLAINTEXT_OVERHEAD_BYTES = 20;
+/**
+ * Plaintext chunk overhead: 11-byte header + 4-byte CRC + 2 reserved bytes
+ * (Gadgetbridge reserves these in `CmfCharacteristic.makeChunksPlaintext`).
+ */
+export const PLAINTEXT_OVERHEAD_BYTES = 17;
 
 /** Encrypted chunk header overhead on the wire. */
 export const ENCRYPTED_HEADER_BYTES = 11;

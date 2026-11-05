@@ -29,12 +29,14 @@ describe('plaintext chunk envelope', () => {
     }
   });
 
-  it('appends a big-endian CRC', () => {
+  it('appends a little-endian CRC (matches Gadgetbridge fromUint32)', () => {
     const payload = new TextEncoder().encode('123456789');
     const chunk = encodePlainChunk(payload);
     expect(chunk.length).toBe(payload.length + 4);
     const view = new DataView(chunk.buffer);
-    expect(view.getUint32(payload.length, false)).toBe(0xcbf43926);
+    expect(view.getUint32(payload.length, true)).toBe(0xcbf43926);
+    // 0xCBF43926 serialises LSB-first as 26 39 F4 CB.
+    expect([...chunk.subarray(payload.length)]).toEqual([0x26, 0x39, 0xf4, 0xcb]);
   });
 
   it('rejects tampered payloads', () => {
