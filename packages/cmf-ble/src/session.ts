@@ -9,8 +9,12 @@
  */
 import { ok, err, type Result } from '@noop-cmf/types';
 import { decodeEncryptedChunk, decodePlainChunk, encodeEncryptedChunk, encodePlainChunk } from './chunks.js';
+import { commandFromCodes, shouldEncrypt } from './commands.js';
 import type { BleTransport, TransportError } from './mock-transport.js';
 import {
+  CHUNK_CRC_BYTES,
+  PACKET_HEADER,
+  PACKET_HEADER_BYTES,
   decodePacket,
   encodePacket,
   encryptedChunkPayloadSize,
@@ -44,6 +48,8 @@ export class CmfBleSession {
   private readonly transport: BleTransport;
   private readonly waiters = new Map<string, Waiter>();
   private readonly chunkBuffers = new Map<string, Map<number, Uint8Array>>();
+  private pending = new Uint8Array(0);
+  private draining = false;
   private key: Uint8Array | undefined;
 
   constructor(transport: BleTransport) {
@@ -128,29 +134,87 @@ export class CmfBleSession {
     });
   }
 
+  /**
+   * A single frame is routinely split across several BLE notifications when
+   * the MTU is small, so buffer raw bytes and emit only whole frames.
+   */
   private handleFrame(frame: Uint8Array): void {
+    if (this.draining) {
+      this.append(frame);
+      return;
+    }
+    this.append(frame);
+    void this.drainFrames();
+  }
+
+  private append(frame: Uint8Array): void {
+    const merged = new Uint8Array(this.pending.length + frame.length);
+    merged.set(this.pending, 0);
+    merged.set(frame, this.pending.length);
+    this.pending = merged;
+  }
+
+  private async drainFrames(): Promise<void> {
+    this.draining = true;
+    try {
+      while (this.pending.length >= PACKET_HEADER_BYTES) {
+        if (this.pending[0] !== PACKET_HEADER) {
+          const next = this.pending.indexOf(PACKET_HEADER, 1);
+          this.pending = next === -1 ? new Uint8Array(0) : this.pending.slice(next);
+          continue;
+        }
+        const view = new DataView(this.pending.buffer, this.pending.byteOffset, this.pending.byteLength);
+        const declared = view.getUint16(1, false);
+        // The watch omits the trailing CRC32 on plaintext frames but still
+        // declares its length, so a plaintext frame is 4 bytes shorter than
+        // the header claims (cf. Gadgetbridge CmfCharacteristic).
+        const cmd = commandFromCodes(view.getUint16(3, false), view.getUint16(9, false));
+        const plaintext = cmd !== undefined && !shouldEncrypt(cmd.name);
+        const payloadBytes = plaintext ? Math.max(0, declared - CHUNK_CRC_BYTES) : declared;
+        const total = PACKET_HEADER_BYTES + payloadBytes;
+        if (this.pending.length < total) {
+          return;
+        }
+        const frame = this.pending.slice(0, total);
+        this.pending = this.pending.slice(total);
+        await this.processFrame(frame);
+      }
+    } finally {
+      this.draining = false;
+    }
+  }
+
+  private async processFrame(frame: Uint8Array): Promise<void> {
     const decoded = decodePacket(frame);
     if (!decoded.ok) {
       return;
     }
     const { header, payload } = decoded.value;
-    void this.decodeChunk(payload).then((decodedChunk) => {
-      if (!decodedChunk.ok) {
-        return;
-      }
-      const reassembled = this.reassemble(header.cmd1, header.cmd2, header.chunkCount, header.chunkIndex, decodedChunk.value);
-      if (!reassembled) {
-        return;
-      }
-      const key = this.keyFor({ cmd1: header.cmd1, cmd2: header.cmd2 });
-      const waiter = this.waiters.get(key);
-      if (!waiter) {
-        return;
-      }
-      clearTimeout(waiter.timer);
-      this.waiters.delete(key);
-      waiter.resolve(ok(reassembled));
-    });
+    const cmd = commandFromCodes(header.cmd1, header.cmd2);
+    // Plaintext frames carry no trailing CRC32, so pass the bytes through.
+    const decodedChunk =
+      cmd !== undefined && !shouldEncrypt(cmd.name) ? ok(payload) : await this.decodeChunk(payload);
+    if (!decodedChunk.ok) {
+      return;
+    }
+    const reassembled = this.reassemble(
+      header.cmd1,
+      header.cmd2,
+      header.chunkCount,
+      header.chunkIndex,
+      decodedChunk.value,
+    );
+    if (!reassembled) {
+      return;
+    }
+    const key = this.keyFor({ cmd1: header.cmd1, cmd2: header.cmd2 });
+    const waiter = this.waiters.get(key);
+    if (!waiter) {
+      return;
+    }
+    clearTimeout(waiter.timer);
+    this.waiters.delete(key);
+    waiter.resolve(ok(reassembled));
   }
 
   private async decodeChunk(chunk: Uint8Array): Promise<Result<Uint8Array, string>> {

@@ -39,10 +39,47 @@ export interface AuthenticateOptions {
   readonly authKey: Uint8Array;
   /** Per-step timeout in milliseconds. */
   readonly timeoutMs?: number;
+  /**
+   * Attempts for the opening `AUTH_PHONE_NAME` step. The watch routinely
+   * ignores the first one right after pairing, so retrying is required.
+   */
+  readonly attempts?: number;
+  /** Delay between `AUTH_PHONE_NAME` attempts, in milliseconds. */
+  readonly retryDelayMs?: number;
 }
 
 function fromSession(error: SessionError): Result<never, AuthenticateError> {
   return err({ code: error.code, message: error.message });
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/**
+ * Send `AUTH_PHONE_NAME` until the watch answers with `AUTH_WATCH_MAC`.
+ */
+async function openSession(
+  session: CmfBleSession,
+  phoneName: Uint8Array,
+  attempts: number,
+  timeoutMs: number,
+  retryDelayMs: number,
+): Promise<Result<Uint8Array, SessionError>> {
+  let result = await session.request(AUTH_PHONE_NAME, phoneName, AUTH_WATCH_MAC, {
+    encrypted: true,
+    timeoutMs,
+  });
+  for (let attempt = 1; attempt < attempts && !result.ok; attempt += 1) {
+    await delay(retryDelayMs);
+    result = await session.request(AUTH_PHONE_NAME, phoneName, AUTH_WATCH_MAC, {
+      encrypted: true,
+      timeoutMs,
+    });
+  }
+  return result;
 }
 
 /**
@@ -60,10 +97,13 @@ export async function authenticate(
   phoneName[0] = AUTH_MARKER;
   phoneName.set(modelBytes, 1);
 
-  const macReply = await session.request(AUTH_PHONE_NAME, phoneName, AUTH_WATCH_MAC, {
-    encrypted: true,
+  const macReply = await openSession(
+    session,
+    phoneName,
+    options.attempts ?? 3,
     timeoutMs,
-  });
+    options.retryDelayMs ?? 1000,
+  );
   if (!macReply.ok) {
     return fromSession(macReply.error);
   }

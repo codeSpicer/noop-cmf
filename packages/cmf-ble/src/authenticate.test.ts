@@ -115,10 +115,30 @@ describe('authenticate', () => {
     const { transport, session } = await makeSession();
     await transport.disconnect();
 
-    const result = await authenticate(session, { model: 'Pixel 7a', authKey: AUTH_KEY });
+    const result = await authenticate(session, { model: 'Pixel 7a', authKey: AUTH_KEY, attempts: 1 });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe('TRANSPORT');
     }
+  });
+
+  it('retries when the watch ignores the first AUTH_PHONE_NAME', async () => {
+    const { transport, session } = await makeSession();
+    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, []);
+    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, [
+      await encryptedFrame(AUTH_WATCH_MAC, new Uint8Array([0x5a, ...WATCH_MAC]), AUTH_KEY),
+    ]);
+    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, [await encryptedFrame(AUTH_NONCE_REPLY, NONCE, AUTH_KEY)]);
+    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, [
+      await encryptedFrame(AUTHENTICATED_CONFIRM_REPLY, new Uint8Array([0x5a]), SESSION_KEY),
+    ]);
+
+    const result = await authenticate(session, {
+      model: 'Pixel 7a',
+      authKey: AUTH_KEY,
+      timeoutMs: 50,
+      retryDelayMs: 0,
+    });
+    expect(result.ok).toBe(true);
   });
 });

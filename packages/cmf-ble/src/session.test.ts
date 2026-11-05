@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { encodeEncryptedChunk, encodePlainChunk } from './chunks.js';
+import { AUTH_PAIR_REPLY, AUTH_PAIR_REQUEST } from './commands.js';
 import { MockBleTransport } from './mock-transport.js';
 import { encodePacket, encryptedChunkPayloadSize, plaintextChunkSize } from './packets.js';
 import { CmfBleSession } from './session.js';
@@ -195,6 +196,75 @@ describe('CmfBleSession', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe('TRANSPORT');
+    }
+  });
+
+  it('reassembles one frame split across several notifications', async () => {
+    const transport = await makeTransport();
+    const session = new CmfBleSession(transport);
+    await session.start();
+    const frame = mustEncode(RESPONSE, 1, 1, encodePlainChunk(new Uint8Array([0xaa, 0xbb])));
+    const pending = session.request(REQUEST, new Uint8Array([1]), RESPONSE);
+    transport.injectNotification(VENDOR_FFF1_NOTIFY_CHAR_UUID, frame.slice(0, 9));
+    transport.injectNotification(VENDOR_FFF1_NOTIFY_CHAR_UUID, frame.slice(9));
+    const result = await pending;
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect([...result.value]).toEqual([0xaa, 0xbb]);
+    }
+  });
+
+  it('accepts a plaintext frame whose declared length counts an unsent CRC', async () => {
+    const transport = await makeTransport();
+    const session = new CmfBleSession(transport);
+    await session.start();
+    const body = new Uint8Array([1, 2, 3, 4]);
+    const frame = new Uint8Array(11 + body.length);
+    const view = new DataView(frame.buffer);
+    view.setUint8(0, 0xf5);
+    view.setUint16(1, body.length + 4, false);
+    view.setUint16(3, 0xffff, false);
+    view.setUint16(5, 1, false);
+    view.setUint16(7, 1, false);
+    view.setUint16(9, 0x0048, false);
+    frame.set(body, 11);
+    const pending = session.request(AUTH_PAIR_REQUEST, new Uint8Array([1]), AUTH_PAIR_REPLY);
+    transport.injectNotification(VENDOR_FFF1_NOTIFY_CHAR_UUID, frame);
+    const result = await pending;
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect([...result.value]).toEqual([1, 2, 3, 4]);
+    }
+  });
+
+  it('waits for the rest of a frame that is still arriving', async () => {
+    const transport = await makeTransport();
+    const session = new CmfBleSession(transport);
+    await session.start();
+    const frame = mustEncode(RESPONSE, 1, 1, encodePlainChunk(new Uint8Array([0x11])));
+    const pending = session.request(REQUEST, new Uint8Array([1]), RESPONSE);
+    // A lone header is not enough to emit a frame; the body arrives later.
+    transport.injectNotification(VENDOR_FFF1_NOTIFY_CHAR_UUID, frame.slice(0, 11));
+    transport.injectNotification(VENDOR_FFF1_NOTIFY_CHAR_UUID, frame.slice(11));
+    const result = await pending;
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect([...result.value]).toEqual([0x11]);
+    }
+  });
+
+  it('recovers from a stray non-header byte between frames', async () => {
+    const transport = await makeTransport();
+    const session = new CmfBleSession(transport);
+    await session.start();
+    const frame = mustEncode(RESPONSE, 1, 1, encodePlainChunk(new Uint8Array([0xcc])));
+    transport.injectNotification(VENDOR_FFF1_NOTIFY_CHAR_UUID, new Uint8Array([0x00, 0x11]));
+    const pending = session.request(REQUEST, new Uint8Array([1]), RESPONSE);
+    transport.injectNotification(VENDOR_FFF1_NOTIFY_CHAR_UUID, frame);
+    const result = await pending;
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect([...result.value]).toEqual([0xcc]);
     }
   });
 });

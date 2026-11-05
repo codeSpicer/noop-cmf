@@ -136,6 +136,29 @@ describe('decodeSleepData', () => {
     expect(decodeSleepData(new Uint8Array(17)).ok).toBe(false);
   });
 
+  it('skips stage records with an unknown stage or zero duration', () => {
+    const data = payload(42, (view) => {
+      view.setUint32(0, 1_700_000_000, true);
+      view.setUint32(4, 1_700_028_800, true);
+      view.setUint32(18, 1_700_000_100, true);
+      view.setInt16(22, 600, true);
+      view.setInt16(24, 9, true);
+      view.setUint32(26, 1_700_000_700, true);
+      view.setInt16(30, 0, true);
+      view.setInt16(32, 1, true);
+      view.setUint32(34, 1_700_000_800, true);
+      view.setInt16(38, 300, true);
+      view.setInt16(40, 2, true);
+    });
+    const result = decodeSleepData(data);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.segments).toEqual([
+        { start: 1_700_000_800_000, end: 1_700_001_100_000, stage: 'light' },
+      ]);
+    }
+  });
+
   it('rejects a misaligned stage tail', () => {
     expect(decodeSleepData(new Uint8Array(18 + 7)).ok).toBe(false);
   });

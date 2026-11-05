@@ -2,6 +2,7 @@ export * from './uuids.js';
 export * from './crypto.js';
 export * from './auth.js';
 export * from './authenticate.js';
+export * from './pair.js';
 export * from './packets.js';
 export * from './chunks.js';
 export * from './samples.js';
