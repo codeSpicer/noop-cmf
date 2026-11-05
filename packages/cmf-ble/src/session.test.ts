@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { encodeEncryptedChunk, encodePlainChunk } from './chunks.js';
 import { MockBleTransport } from './mock-transport.js';
-import { encodePacket } from './packets.js';
+import { encodePacket, encryptedChunkPayloadSize, plaintextChunkSize } from './packets.js';
 import { CmfBleSession } from './session.js';
 import { VENDOR_FFF1_NOTIFY_CHAR_UUID, VENDOR_FFF2_WRITE_CHAR_UUID } from './uuids.js';
 
 const REQUEST = { cmd1: 0xffff, cmd2: 0x8005 };
 const RESPONSE = { cmd1: 0xffff, cmd2: 0x0005 };
+const KEY = new Uint8Array(16).fill(0x2a);
 
 async function makeTransport(): Promise<MockBleTransport> {
   const transport = new MockBleTransport({
@@ -29,6 +31,36 @@ function mustEncode(
   return encoded.value;
 }
 
+/** Split `payload` the same way `CmfBleSession.send` does, wrapping each part. */
+function plainFrames(payload: Uint8Array, command: { cmd1: number; cmd2: number } = RESPONSE): Uint8Array[] {
+  const chunkSize = plaintextChunkSize();
+  const chunkCount = Math.max(1, Math.ceil(payload.length / chunkSize));
+  const frames: Uint8Array[] = [];
+  for (let i = 0; i < chunkCount; i += 1) {
+    frames.push(mustEncode(command, chunkCount, i + 1, encodePlainChunk(payload.subarray(i * chunkSize, Math.min(payload.length, (i + 1) * chunkSize)))));
+  }
+  return frames;
+}
+
+async function encryptedFrames(payload: Uint8Array, command: { cmd1: number; cmd2: number } = RESPONSE): Promise<Uint8Array[]> {
+  const size = encryptedChunkPayloadSize();
+  if (!size.ok) {
+    throw new Error(size.error);
+  }
+  const chunkSize = size.value;
+  const chunkCount = Math.max(1, Math.ceil(payload.length / chunkSize));
+  const frames: Uint8Array[] = [];
+  for (let i = 0; i < chunkCount; i += 1) {
+    const slice = payload.subarray(i * chunkSize, Math.min(payload.length, (i + 1) * chunkSize));
+    const chunk = await encodeEncryptedChunk(KEY, slice);
+    if (!chunk.ok) {
+      throw new Error(chunk.error);
+    }
+    frames.push(mustEncode(command, chunkCount, i + 1, chunk.value));
+  }
+  return frames;
+}
+
 describe('CmfBleSession', () => {
   it('writes a single-chunk command', async () => {
     const transport = await makeTransport();
@@ -47,14 +79,23 @@ describe('CmfBleSession', () => {
     expect(transport.getWrites()).toHaveLength(2);
   });
 
-  it('reassembles and dispatches a single-chunk response', async () => {
+  it('fails encrypted send without a key', async () => {
+    const transport = await makeTransport();
+    const session = new CmfBleSession(transport);
+    await session.start();
+    const result = await session.send(REQUEST, new Uint8Array([1]), { encrypted: true });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('CRYPTO');
+    }
+  });
+
+  it('reassembles and dispatches a single-chunk plaintext response', async () => {
     const transport = await makeTransport();
     const session = new CmfBleSession(transport);
     await session.start();
     const responsePayload = new Uint8Array([0xaa, 0xbb]);
-    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, [
-      mustEncode(RESPONSE, 1, 1, responsePayload),
-    ]);
+    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, plainFrames(responsePayload));
     const result = await session.request(REQUEST, new Uint8Array([1]), RESPONSE);
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -62,16 +103,27 @@ describe('CmfBleSession', () => {
     }
   });
 
-  it('reassembles a multi-chunk response', async () => {
+  it('reassembles a multi-chunk plaintext response', async () => {
     const transport = await makeTransport();
     const session = new CmfBleSession(transport);
     await session.start();
     const responsePayload = new Uint8Array(300);
-    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, [
-      mustEncode(RESPONSE, 2, 1, responsePayload.subarray(0, 227)),
-      mustEncode(RESPONSE, 2, 2, responsePayload.subarray(227)),
-    ]);
+    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, plainFrames(responsePayload));
     const result = await session.request(REQUEST, new Uint8Array([1]), RESPONSE);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect([...result.value]).toEqual([...responsePayload]);
+    }
+  });
+
+  it('reassembles an encrypted response', async () => {
+    const transport = await makeTransport();
+    const session = new CmfBleSession(transport);
+    session.setKey(KEY);
+    await session.start();
+    const responsePayload = new Uint8Array(Array.from({ length: 300 }, (_, i) => i % 256));
+    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, await encryptedFrames(responsePayload));
+    const result = await session.request(REQUEST, new Uint8Array([1]), RESPONSE, { encrypted: true });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect([...result.value]).toEqual([...responsePayload]);
@@ -82,7 +134,7 @@ describe('CmfBleSession', () => {
     const transport = await makeTransport();
     const session = new CmfBleSession(transport);
     await session.start();
-    const result = await session.request(REQUEST, new Uint8Array([1]), RESPONSE, 50);
+    const result = await session.request(REQUEST, new Uint8Array([1]), RESPONSE, { timeoutMs: 50 });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe('TIMEOUT');
@@ -94,9 +146,7 @@ describe('CmfBleSession', () => {
     const session = new CmfBleSession(transport);
     await session.start();
     transport.injectNotification(VENDOR_FFF1_NOTIFY_CHAR_UUID, new Uint8Array([0x00, 0x01]));
-    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, [
-      mustEncode(RESPONSE, 1, 1, new Uint8Array([0xaa])),
-    ]);
+    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, plainFrames(new Uint8Array([0xaa])));
     const result = await session.request(REQUEST, new Uint8Array([1]), RESPONSE);
     expect(result.ok).toBe(true);
   });
@@ -105,11 +155,31 @@ describe('CmfBleSession', () => {
     const transport = await makeTransport();
     const session = new CmfBleSession(transport);
     await session.start();
-    transport.injectNotification(VENDOR_FFF1_NOTIFY_CHAR_UUID, mustEncode(RESPONSE, 1, 1, new Uint8Array([0xaa])));
-    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, [
-      mustEncode(RESPONSE, 1, 1, new Uint8Array([0xbb])),
-    ]);
+    const stray = { cmd1: 0xffff, cmd2: 0x0007 };
+    transport.injectNotification(
+      VENDOR_FFF1_NOTIFY_CHAR_UUID,
+      mustEncode(stray, 1, 1, encodePlainChunk(new Uint8Array([0xaa]))),
+    );
+    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, plainFrames(new Uint8Array([0xbb])));
     const result = await session.request(REQUEST, new Uint8Array([1]), RESPONSE);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect([...result.value]).toEqual([0xbb]);
+    }
+  });
+
+  it('ignores frames that fail to decode', async () => {
+    const transport = await makeTransport();
+    const session = new CmfBleSession(transport);
+    session.setKey(KEY);
+    await session.start();
+    const stray = { cmd1: 0xffff, cmd2: 0x0008 };
+    transport.injectNotification(
+      VENDOR_FFF1_NOTIFY_CHAR_UUID,
+      mustEncode(stray, 1, 1, new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])),
+    );
+    transport.scriptReply(VENDOR_FFF2_WRITE_CHAR_UUID, await encryptedFrames(new Uint8Array([0xbb])));
+    const result = await session.request(REQUEST, new Uint8Array([1]), RESPONSE, { encrypted: true });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect([...result.value]).toEqual([0xbb]);

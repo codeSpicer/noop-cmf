@@ -77,4 +77,9 @@ describe('encrypted chunk envelope', () => {
     const decoded = await decodeEncryptedChunk(new Uint8Array([1, 2]), new Uint8Array(16));
     expect(decoded.ok).toBe(false);
   });
+
+  it('rejects a bad key length on encode', async () => {
+    const encoded = await encodeEncryptedChunk(new Uint8Array([1, 2]), new Uint8Array([1, 2, 3]));
+    expect(encoded.ok).toBe(false);
+  });
 });

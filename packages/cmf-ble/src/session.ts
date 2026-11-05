@@ -2,28 +2,36 @@
  * CMF protocol session: chunking, reassembly, and request/response
  * correlation on top of a {@link BleTransport}.
  *
- * Crypto (CRC32 + AES chunk encryption) is layered on separately once the
- * auth handshake is validated against a live watch; this file owns the
- * framing mechanics only.
+ * `send(options.encrypted)` selects the chunk envelope: plaintext chunks
+ * carry a CRC32 suffix, encrypted chunks are AES-128-CBC over
+ * `payload || CRC32` (see `chunks.ts`). Reception decodes whichever
+ * envelope the trailing bytes imply (PKCS#7 padding bytes on decryption).
  */
 import { ok, err, type Result } from '@noop-cmf/types';
+import { decodeEncryptedChunk, decodePlainChunk, encodeEncryptedChunk, encodePlainChunk } from './chunks.js';
 import type { BleTransport, TransportError } from './mock-transport.js';
 import {
   decodePacket,
   encodePacket,
-  PacketReassembler,
+  encryptedChunkPayloadSize,
   plaintextChunkSize,
   type CmfCommandRef,
 } from './packets.js';
 import { VENDOR_FFF1_NOTIFY_CHAR_UUID, VENDOR_FFF2_WRITE_CHAR_UUID } from './uuids.js';
 
 /** Machine-readable session failure codes. */
-export type SessionErrorCode = 'TRANSPORT' | 'PROTOCOL' | 'TIMEOUT';
+export type SessionErrorCode = 'TRANSPORT' | 'PROTOCOL' | 'TIMEOUT' | 'CRYPTO';
 
 /** Structured session failure. */
 export interface SessionError {
   readonly code: SessionErrorCode;
   readonly message: string;
+}
+
+/** Options accepted by {@link CmfBleSession.send}. */
+export interface SendOptions {
+  /** True to wrap each chunk in the AES-128-CBC encrypted envelope. */
+  readonly encrypted?: boolean;
 }
 
 interface Waiter {
@@ -34,11 +42,17 @@ interface Waiter {
 /** Correlates outgoing CMF commands with reassembled notify responses. */
 export class CmfBleSession {
   private readonly transport: BleTransport;
-  private readonly reassembler = new PacketReassembler();
   private readonly waiters = new Map<string, Waiter>();
+  private readonly chunkBuffers = new Map<string, Map<number, Uint8Array>>();
+  private key: Uint8Array | undefined;
 
   constructor(transport: BleTransport) {
     this.transport = transport;
+  }
+
+  /** Install the AES session key (absent while unauthenticated). */
+  setKey(key: Uint8Array | undefined): void {
+    this.key = key;
   }
 
   /** Subscribe to the CMF notify characteristic and start reassembling frames. */
@@ -53,12 +67,32 @@ export class CmfBleSession {
   }
 
   /** Chunk (if needed), encode, and write one command's payload to the watch. */
-  async send(command: CmfCommandRef, payload: Uint8Array): Promise<Result<void, SessionError>> {
-    const chunkSize = plaintextChunkSize();
+  async send(
+    command: CmfCommandRef,
+    payload: Uint8Array,
+    options: SendOptions = {},
+  ): Promise<Result<void, SessionError>> {
+    const encrypted = options.encrypted === true;
+    if (encrypted && !this.key) {
+      return err({ code: 'CRYPTO', message: 'No AES session key installed' });
+    }
+    const size = encrypted ? encryptedChunkPayloadSize() : ok(plaintextChunkSize());
+    if (!size.ok) {
+      return err({ code: 'PROTOCOL', message: size.error });
+    }
+    const chunkSize = size.value;
     const chunkCount = Math.max(1, Math.ceil(payload.length / chunkSize));
     for (let index = 0; index < chunkCount; index += 1) {
       const slice = payload.subarray(index * chunkSize, Math.min(payload.length, (index + 1) * chunkSize));
-      const encoded = encodePacket(command, chunkCount, index + 1, slice);
+      let wirePayload = encodePlainChunk(slice);
+      if (encrypted && this.key) {
+        const encodedChunk = await encodeEncryptedChunk(this.key, slice);
+        if (!encodedChunk.ok) {
+          return err({ code: 'CRYPTO', message: encodedChunk.error });
+        }
+        wirePayload = encodedChunk.value;
+      }
+      const encoded = encodePacket(command, chunkCount, index + 1, wirePayload);
       if (!encoded.ok) {
         return err({ code: 'PROTOCOL', message: encoded.error });
       }
@@ -75,16 +109,16 @@ export class CmfBleSession {
     command: CmfCommandRef,
     payload: Uint8Array,
     responseCommand: CmfCommandRef,
-    timeoutMs = 5000,
+    options: SendOptions & { timeoutMs?: number } = {},
   ): Promise<Result<Uint8Array, SessionError>> {
     return new Promise((resolve) => {
-      const key = this.key(responseCommand);
+      const key = this.keyFor(responseCommand);
       const timer = setTimeout(() => {
         this.waiters.delete(key);
         resolve(err({ code: 'TIMEOUT', message: `Timed out waiting for ${key}` }));
-      }, timeoutMs);
+      }, options.timeoutMs ?? 5000);
       this.waiters.set(key, { resolve, timer });
-      void this.send(command, payload).then((sent) => {
+      void this.send(command, payload, options).then((sent) => {
         if (!sent.ok) {
           clearTimeout(timer);
           this.waiters.delete(key);
@@ -99,22 +133,66 @@ export class CmfBleSession {
     if (!decoded.ok) {
       return;
     }
-    const reassembled = this.reassembler.feed(frame);
-    if (!reassembled.ok || !reassembled.value) {
-      return;
-    }
-    const command: CmfCommandRef = { cmd1: decoded.value.header.cmd1, cmd2: decoded.value.header.cmd2 };
-    const key = this.key(command);
-    const waiter = this.waiters.get(key);
-    if (!waiter) {
-      return;
-    }
-    clearTimeout(waiter.timer);
-    this.waiters.delete(key);
-    waiter.resolve(ok(reassembled.value));
+    const { header, payload } = decoded.value;
+    void this.decodeChunk(payload).then((decodedChunk) => {
+      if (!decodedChunk.ok) {
+        return;
+      }
+      const reassembled = this.reassemble(header.cmd1, header.cmd2, header.chunkCount, header.chunkIndex, decodedChunk.value);
+      if (!reassembled) {
+        return;
+      }
+      const key = this.keyFor({ cmd1: header.cmd1, cmd2: header.cmd2 });
+      const waiter = this.waiters.get(key);
+      if (!waiter) {
+        return;
+      }
+      clearTimeout(waiter.timer);
+      this.waiters.delete(key);
+      waiter.resolve(ok(reassembled));
+    });
   }
 
-  private key(command: CmfCommandRef): string {
+  private async decodeChunk(chunk: Uint8Array): Promise<Result<Uint8Array, string>> {
+    if (this.key) {
+      const decrypted = await decodeEncryptedChunk(this.key, chunk);
+      if (decrypted.ok) {
+        return decrypted;
+      }
+    }
+    return decodePlainChunk(chunk);
+  }
+
+  private reassemble(
+    cmd1: number,
+    cmd2: number,
+    chunkCount: number,
+    chunkIndex: number,
+    payload: Uint8Array,
+  ): Uint8Array | undefined {
+    const key = this.keyFor({ cmd1, cmd2 });
+    let buffer = this.chunkBuffers.get(key);
+    if (!buffer) {
+      buffer = new Map();
+      this.chunkBuffers.set(key, buffer);
+    }
+    buffer.set(chunkIndex, payload);
+    if (buffer.size !== chunkCount) {
+      return undefined;
+    }
+    const ordered = [...buffer.entries()].sort((a, b) => a[0] - b[0]).map(([, part]) => part);
+    this.chunkBuffers.delete(key);
+    const length = ordered.reduce((sum, part) => sum + part.length, 0);
+    const joined = new Uint8Array(length);
+    let offset = 0;
+    for (const part of ordered) {
+      joined.set(part, offset);
+      offset += part.length;
+    }
+    return joined;
+  }
+
+  private keyFor(command: CmfCommandRef): string {
     return `${command.cmd1.toString(16)}:${command.cmd2.toString(16)}`;
   }
 }
