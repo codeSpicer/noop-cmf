@@ -25,6 +25,9 @@ export const AUTH_RANDOM_BYTES = 16;
 /** Marker byte the phone prefixes to auth command payloads. */
 export const AUTH_MARKER = 0xa5;
 
+/** Marker byte the watch prefixes to its auth replies (`AUTH_WATCH_MAC`, confirm). */
+export const WATCH_MARKER = 0x5a;
+
 /** Random (16) and signature (32) halves of an `AUTH_PAIR_REPLY` payload. */
 export const PAIR_REPLY_RANDOM_BYTES = 16;
 

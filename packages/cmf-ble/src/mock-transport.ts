@@ -46,7 +46,7 @@ export class MockBleTransport implements BleTransport {
   private readonly characteristics = new Map<string, MockCharacteristic>();
   private readonly handlers = new Map<string, Set<NotifyHandler>>();
   private readonly writes: Array<{ uuid: string; value: Uint8Array }> = [];
-  private readonly scriptedReplies = new Map<string, Uint8Array[]>();
+  private readonly replyBatches = new Map<string, Uint8Array[][]>();
 
   constructor(seed: Readonly<Record<string, { value: Uint8Array; notify: boolean }>> = {}) {
     for (const [uuid, entry] of Object.entries(seed)) {
@@ -59,9 +59,14 @@ export class MockBleTransport implements BleTransport {
     return this.writes;
   }
 
-  /** Queue canned notify payloads emitted on the next write to `writeUuid`. */
+  /**
+   * Queue one batch of notify payloads. Each subsequent write to `writeUuid`
+   * emits the next batch, so multi-step handshakes can be scripted up front.
+   */
   scriptReply(writeUuid: string, payloads: readonly Uint8Array[]): void {
-    this.scriptedReplies.set(writeUuid, [...payloads]);
+    const queue = this.replyBatches.get(writeUuid) ?? [];
+    queue.push([...payloads]);
+    this.replyBatches.set(writeUuid, queue);
   }
 
   connect(): Promise<Result<void, TransportError>> {
@@ -86,10 +91,15 @@ export class MockBleTransport implements BleTransport {
       );
     }
     this.writes.push({ uuid, value: value.slice() });
-    const replies = this.scriptedReplies.get(uuid) ?? [];
-    this.scriptedReplies.delete(uuid);
-    for (const reply of replies) {
-      this.emitToAll(reply);
+    const queue = this.replyBatches.get(uuid);
+    const batch = queue?.shift();
+    if (queue && queue.length === 0) {
+      this.replyBatches.delete(uuid);
+    }
+    if (batch) {
+      for (const reply of batch) {
+        this.emitToAll(reply);
+      }
     }
     return Promise.resolve(ok(undefined));
   }
