@@ -1,5 +1,5 @@
 /**
- * SHA-256 challenge-response derivation and AES-128-CBC session crypto.
+ * SHA-256 helpers and AES-128-CBC session crypto.
  *
  * Uses Web Crypto (`crypto.subtle`), available in browsers, Node 19+, and
  * Deno without extra dependencies. All failures surface as `Result` errors.
@@ -14,12 +14,6 @@ export const AES_BLOCK_BYTES = 16;
 
 /** SHA-256 digest length in bytes. */
 export const SHA256_BYTES = 32;
-
-/** Challenge length expected from the watch in bytes. */
-export const CHALLENGE_BYTES = 16;
-
-/** Domain separator mixed into the challenge response derivation. */
-export const CHALLENGE_DOMAIN_SEPARATOR = 'noop-cmf-pairing-v1';
 
 /** Error codes for the crypto layer. */
 export type CryptoErrorCode = 'BAD_INPUT' | 'WEBCRYPTO_UNAVAILABLE' | 'OPERATION_FAILED';
@@ -38,42 +32,24 @@ function subtle(): Result<SubtleCrypto, CryptoError> {
   return ok(cryptoObject.subtle);
 }
 
-function toBytes(input: Uint8Array | string): Uint8Array {
-  if (typeof input === 'string') {
-    return new TextEncoder().encode(input);
-  }
-  return input;
-}
-
 /**
- * Derive the 16-byte pairing response from `secret || separator || challenge`.
- *
- * The first 16 bytes of SHA-256(secret || separator || challenge) form the
- * response sent back to the watch.
+ * SHA-256 over the concatenation of the given byte chunks.
  */
-export async function deriveChallengeResponse(
-  secret: Uint8Array | string,
-  challenge: Uint8Array,
-): Promise<Result<Uint8Array, CryptoError>> {
-  if (challenge.length !== CHALLENGE_BYTES) {
-    return err({
-      code: 'BAD_INPUT',
-      message: `Challenge must be ${String(CHALLENGE_BYTES)} bytes`,
-    });
-  }
+export async function sha256(...parts: Uint8Array[]): Promise<Result<Uint8Array, CryptoError>> {
   const subtleCrypto = subtle();
   if (!subtleCrypto.ok) {
     return subtleCrypto;
   }
   try {
-    const secretBytes = toBytes(secret);
-    const separatorBytes = new TextEncoder().encode(CHALLENGE_DOMAIN_SEPARATOR);
-    const material = new Uint8Array(secretBytes.length + separatorBytes.length + challenge.length);
-    material.set(secretBytes, 0);
-    material.set(separatorBytes, secretBytes.length);
-    material.set(challenge, secretBytes.length + separatorBytes.length);
+    const length = parts.reduce((sum, part) => sum + part.length, 0);
+    const material = new Uint8Array(length);
+    let offset = 0;
+    for (const part of parts) {
+      material.set(part, offset);
+      offset += part.length;
+    }
     const digest = await subtleCrypto.value.digest('SHA-256', material);
-    return ok(new Uint8Array(digest).slice(0, AES_128_KEY_BYTES));
+    return ok(new Uint8Array(digest));
   } catch (error) {
     return err({
       code: 'OPERATION_FAILED',
