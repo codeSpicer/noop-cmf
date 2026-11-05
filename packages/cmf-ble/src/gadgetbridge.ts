@@ -17,7 +17,6 @@
 import initSqlJs, { type Database } from 'sql.js';
 import {
   BpmSchema,
-  EpochMsSchema,
   SpO2PercentSchema,
   StressScoreSchema,
   type EpochMs,
@@ -25,7 +24,6 @@ import {
   type Logger,
   type RecoveryNotificationInput,
   type SleepSegment,
-  type SleepStage,
   type Spo2Sample,
   type StepSample,
   type StressSample,
@@ -37,6 +35,12 @@ import {
 } from '@noop-cmf/types';
 import { err, ok } from '@noop-cmf/types';
 import { noopLogger } from '@noop-cmf/types';
+import {
+  MS_PER_SECOND,
+  decodeCmfStage,
+  toEpochMs,
+  toEpochMsSeconds,
+} from './samples.js';
 
 /** Machine identifier for the Gadgetbridge import path. */
 export const GADGETBRIDGE_PROVIDER_ID = 'gadgetbridge';
@@ -54,24 +58,6 @@ CREATE TABLE IF NOT EXISTS CMF_SLEEP_STAGE_SAMPLE (TIMESTAMP INTEGER NOT NULL, D
 CREATE TABLE IF NOT EXISTS CMF_ACTIVITY_SAMPLE (TIMESTAMP INTEGER NOT NULL, DEVICE_ID INTEGER NOT NULL, USER_ID INTEGER NOT NULL, RAW_INTENSITY INTEGER NOT NULL, STEPS INTEGER NOT NULL, RAW_KIND INTEGER NOT NULL, HEART_RATE INTEGER NOT NULL, DISTANCE INTEGER, CALORIES INTEGER, PRIMARY KEY (TIMESTAMP, DEVICE_ID) ON CONFLICT REPLACE) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS BASE_ACTIVITY_SUMMARY (_id INTEGER PRIMARY KEY, NAME TEXT, START_TIME INTEGER NOT NULL, END_TIME INTEGER NOT NULL, OVERRIDE_ACTIVITY_KIND INTEGER NOT NULL, ACTIVITY_KIND INTEGER NOT NULL, BASE_LONGITUDE INTEGER, BASE_LATITUDE INTEGER, BASE_ALTITUDE INTEGER, GPX_TRACK TEXT, RAW_DETAILS_PATH TEXT, HEADER_PHOTO TEXT, DEVICE_ID INTEGER NOT NULL, USER_ID INTEGER NOT NULL, SUMMARY_DATA TEXT, RAW_SUMMARY_DATA BLOB);
 `;
-
-/** Seconds per minute, for the mixed ms/s schema. */
-export const MS_PER_SECOND = 1000;
-
-/** Milliseconds per minute. */
-export const MS_PER_MINUTE = 60_000;
-
-/** CMF sleep stage byte for deep sleep. */
-export const CMF_STAGE_DEEP = 1;
-
-/** CMF sleep stage byte for light sleep. */
-export const CMF_STAGE_LIGHT = 2;
-
-/** CMF sleep stage byte for REM sleep. */
-export const CMF_STAGE_REM = 3;
-
-/** CMF sleep stage byte for awake during the night. */
-export const CMF_STAGE_AWAKE = 4;
 
 /** One synthetic row used to build fixture databases for tests. */
 export interface FixturePoint {
@@ -377,44 +363,6 @@ function collectRows(
   } finally {
     statement.free();
   }
-}
-
-/** Millisecond timestamp column → {@link EpochMs}. */
-function toEpochMs(value: unknown): EpochMs | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    return undefined;
-  }
-  const parsed = EpochMsSchema.safeParse(Math.round(value));
-  return parsed.success ? parsed.data : undefined;
-}
-
-/** Second timestamp column → {@link EpochMs}. */
-function toEpochMsSeconds(value: unknown): EpochMs | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    return undefined;
-  }
-  return toEpochMs(Math.round(value) * MS_PER_SECOND);
-}
-
-/**
- * CMF sleep stage byte → canonical stage.
- * From Gadgetbridge `CmfActivitySampleProvider.sleepStageToActivityKind`:
- * 1 → deep, 2 → light, 3 → rem, 4 → awake, everything else unknown.
- */
-export function decodeCmfStage(value: unknown): SleepStage | undefined {
-  if (value === CMF_STAGE_DEEP) {
-    return 'deep';
-  }
-  if (value === CMF_STAGE_LIGHT) {
-    return 'light';
-  }
-  if (value === CMF_STAGE_REM) {
-    return 'rem';
-  }
-  if (value === CMF_STAGE_AWAKE) {
-    return 'awake';
-  }
-  return undefined;
 }
 
 /**

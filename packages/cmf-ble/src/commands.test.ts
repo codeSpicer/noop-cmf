@@ -3,8 +3,8 @@ import {
   ACTIVITY_FETCH_1,
   ALL_COMMANDS,
   BATTERY,
-  METRIC_009B_GET,
-  METRIC_009B_RET,
+  HEART_MONITORING_ENABLED_SET,
+  HEART_RATE_RESTING,
   TIME,
   WORKOUT_SUMMARY,
   commandFromCodes,
@@ -23,9 +23,9 @@ describe('command table', () => {
     expect(commandFromCodes(0x1234, 0x5678)).toBeUndefined();
   });
 
-  it('resolves opcodes observed in the live HCI capture', () => {
-    expect(commandFromCodes(0x009b, 0x0001)).toEqual(METRIC_009B_GET);
-    expect(commandFromCodes(0x009b, 0x0003)).toEqual(METRIC_009B_RET);
+  it('resolves opcodes by their Gadgetbridge names', () => {
+    expect(commandFromCodes(0x00da, 0x0001)).toEqual(HEART_RATE_RESTING);
+    expect(commandFromCodes(0x009b, 0x0001)).toEqual(HEART_MONITORING_ENABLED_SET);
   });
 
   it('has no duplicate (cmd1, cmd2) opcode pairs', () => {
@@ -37,9 +37,10 @@ describe('command table', () => {
     }
   });
 
-  it('marks pairing commands as plaintext', () => {
+  it('marks pairing and data-chunk commands as plaintext', () => {
     expect(shouldEncrypt('AUTH_PAIR_REQUEST')).toBe(false);
     expect(shouldEncrypt('AUTH_PAIR_REPLY')).toBe(false);
+    expect(shouldEncrypt('DATA_CHUNK_WRITE_FIRMWARE')).toBe(false);
     expect(shouldEncrypt('ACTIVITY_DATA')).toBe(true);
     expect(shouldEncrypt('BATTERY')).toBe(true);
     expect(shouldEncrypt('UNKNOWN_CMD')).toBe(true);

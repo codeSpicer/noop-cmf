@@ -14,7 +14,6 @@ import type { SleepStage, TimeRange } from '@noop-cmf/types';
 import {
   activityKindName,
   buildGadgetbridgeFixture,
-  decodeCmfStage,
   GadgetbridgeSqliteProvider,
   GADGETBRIDGE_PROVIDER_ID,
   GADGETBRIDGE_PROVIDER_LABEL,
@@ -22,6 +21,7 @@ import {
   loadSqlJs,
   parseGadgetbridgeFile,
 } from './gadgetbridge.js';
+import { decodeCmfStage } from './samples.js';
 
 const T0_MS = 1_700_000_000_000;
 const T0_S = Math.floor(T0_MS / 1000);

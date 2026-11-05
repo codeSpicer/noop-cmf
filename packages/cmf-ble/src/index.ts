@@ -4,6 +4,8 @@ export * from './auth.js';
 export * from './authenticate.js';
 export * from './packets.js';
 export * from './chunks.js';
+export * from './samples.js';
+export * from './wire.js';
 export * from './commands.js';
 export * from './mock-transport.js';
 export * from './webble-transport.js';
