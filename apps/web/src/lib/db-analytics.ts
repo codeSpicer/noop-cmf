@@ -31,7 +31,7 @@ export async function latestDayRange(
   db: NoopCmfDatabase = getDatabase(),
 ): Promise<{ start: number; end: number } | null> {
   const hr = await db.hrSamples.orderBy('timestamp').last();
-  const sleep = await db.sleepSegments.orderBy('start').last();
+  const sleep = await db.sleepSegments.orderBy('end').last();
   const workout = await db.workouts.orderBy('start').last();
   const candidates = [hr?.timestamp, sleep?.end, workout?.end].filter(
     (v) => v !== undefined,

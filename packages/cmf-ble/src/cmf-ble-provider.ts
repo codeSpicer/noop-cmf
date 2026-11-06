@@ -19,7 +19,6 @@ import { TimeRangeSchema } from '@noop-cmf/types';
 import { authenticate } from './authenticate.js';
 import { pairWatch } from './pair.js';
 import type { BleTransport, TransportError } from './mock-transport.js';
-import { VENDOR_FFF1_NOTIFY_CHAR_UUID } from './uuids.js';
 import { CmfBleSession } from './session.js';
 import {
   ACTIVITY_FETCH_1,
@@ -42,6 +41,7 @@ export interface CmfBleProviderOptions {
   readonly authKey?: Uint8Array;
   readonly transport?: BleTransport;
   readonly timeoutMs?: number;
+  readonly fetchWindowMs?: number;
 }
 
 const DEFAULT_MODEL = 'noop-cmf';
@@ -59,6 +59,7 @@ export class CmfBleProvider implements WatchDataProvider {
 
   private readonly model: string;
   private readonly timeoutMs: number;
+  private readonly fetchWindowMs: number;
   private transport: BleTransport | undefined;
   private session: CmfBleSession | undefined;
   private connectedState = false;
@@ -68,6 +69,7 @@ export class CmfBleProvider implements WatchDataProvider {
     | undefined;
 
   private fetched = false;
+  private fetchPromise: Promise<void> | undefined;
   public lastFetchDebug = '';
   private cachedHr: HrSample[] = [];
   private cachedStress: StressSample[] = [];
@@ -79,6 +81,7 @@ export class CmfBleProvider implements WatchDataProvider {
   constructor(options: CmfBleProviderOptions = {}) {
     this.model = options.model ?? DEFAULT_MODEL;
     this.timeoutMs = options.timeoutMs ?? 5000;
+    this.fetchWindowMs = options.fetchWindowMs ?? 10000;
     this.transport = options.transport;
     this.authKeyValue = options.authKey;
   }
@@ -175,93 +178,84 @@ export class CmfBleProvider implements WatchDataProvider {
     if (this.fetched || !this.session) {
       return;
     }
-    const session = this.session;
-    const transport = this.transport;
-    if (!transport) {
+    if (this.fetchPromise) {
+      await this.fetchPromise;
       return;
     }
+    const session = this.session;
     const inboundCounts: Record<string, number> = {};
-    const rawCounts: Record<string, number> = {};
-    const rawHandler = (value: Uint8Array) => {
-      if (value.length < 11) return;
-      const view = new DataView(value.buffer, value.byteOffset, value.byteLength);
-      const cmd1 = view.getUint16(3, false);
-      const cmd2 = view.getUint16(9, false);
-      const cmd = commandFromCodes(cmd1, cmd2);
-      const name = cmd ? cmd.name : `unknown(${cmd1.toString(16)}:${cmd2.toString(16)})`;
-      rawCounts[name] = (rawCounts[name] ?? 0) + 1;
-    };
-    transport.startNotifications(VENDOR_FFF1_NOTIFY_CHAR_UUID, rawHandler).catch(() => {});
-    session.setFrameHandler((cmdRef, payload) => {
-      const cmd = commandFromCodes(cmdRef.cmd1, cmdRef.cmd2);
-      const name = cmd ? cmd.name : 'unknown';
-      inboundCounts[name] = (inboundCounts[name] ?? 0) + 1;
-      switch (name) {
-        case 'HEART_RATE_MANUAL_AUTO':
-        case 'HEART_RATE_WORKOUT':
-        case 'HEART_RATE_RESTING': {
-          const decoded = decodeHeartRate(payload);
-          if (decoded.ok) this.cachedHr.push(...decoded.value);
-          break;
-        }
-        case 'STRESS': {
-          const decoded = decodeStress(payload);
-          if (decoded.ok) this.cachedStress.push(...decoded.value);
-          break;
-        }
-        case 'SPO2': {
-          const decoded = decodeSpo2(payload);
-          if (decoded.ok) this.cachedSpo2.push(...decoded.value);
-          break;
-        }
-        case 'SLEEP_DATA': {
-          const decoded = decodeSleepData(payload);
-          if (decoded.ok) this.cachedSleep.push(...decoded.value.segments);
-          break;
-        }
-        case 'ACTIVITY_DATA': {
-          const decoded = decodeActivityData(payload);
-          if (decoded.ok) {
-            for (const record of decoded.value) {
-              this.cachedSteps.push({ timestamp: record.timestamp, steps: record.steps });
-            }
+    const run = async (): Promise<void> => {
+      session.setFrameHandler((cmdRef, payload) => {
+        const cmd = commandFromCodes(cmdRef.cmd1, cmdRef.cmd2);
+        const name = cmd ? cmd.name : 'unknown';
+        inboundCounts[name] = (inboundCounts[name] ?? 0) + 1;
+        switch (name) {
+          case 'HEART_RATE_MANUAL_AUTO':
+          case 'HEART_RATE_WORKOUT':
+          case 'HEART_RATE_RESTING': {
+            const decoded = decodeHeartRate(payload);
+            if (decoded.ok) this.cachedHr.push(...decoded.value);
+            break;
           }
-          break;
+          case 'STRESS': {
+            const decoded = decodeStress(payload);
+            if (decoded.ok) this.cachedStress.push(...decoded.value);
+            break;
+          }
+          case 'SPO2': {
+            const decoded = decodeSpo2(payload);
+            if (decoded.ok) this.cachedSpo2.push(...decoded.value);
+            break;
+          }
+          case 'SLEEP_DATA': {
+            const decoded = decodeSleepData(payload);
+            if (decoded.ok) this.cachedSleep.push(...decoded.value.segments);
+            break;
+          }
+          case 'ACTIVITY_DATA': {
+            const decoded = decodeActivityData(payload);
+            if (decoded.ok) {
+              for (const record of decoded.value) {
+                this.cachedSteps.push({ timestamp: record.timestamp, steps: record.steps });
+              }
+            }
+            break;
+          }
+          default:
+            break;
         }
-        default:
-          break;
+      });
+
+      const debug: string[] = [];
+      const sent1 = await session.send(ACTIVITY_FETCH_1, new Uint8Array([0xa5]), { encrypted: true });
+      debug.push(`sent1=${sent1.ok ? 'ok' : sent1.error.message}`);
+      if (sent1.ok) {
+        const ack1 = await session.waitFor(ACTIVITY_FETCH_ACK_1, { timeoutMs: this.timeoutMs });
+        debug.push(`ack1=${ack1.ok ? 'ok code=' + String(ack1.value[0] ?? -1) + ' len=' + String(ack1.value.length) : ack1.error.code}`);
+        if (ack1.ok) {
+          const sent2 = await session.send(ACTIVITY_FETCH_2, new Uint8Array([0xa5]), { encrypted: true });
+          debug.push(`sent2=${sent2.ok ? 'ok' : sent2.error.message}`);
+          const ack2 = await session.waitFor(ACTIVITY_FETCH_ACK_2, { timeoutMs: this.timeoutMs });
+          debug.push(`ack2=${ack2.ok ? 'ok len=' + String(ack2.value.length) : ack2.error.code}`);
+        }
       }
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, this.fetchWindowMs);
+      });
+
+      session.setFrameHandler(undefined);
+      const counts = Object.entries(inboundCounts)
+        .map(([k, v]) => `${k}:${String(v)}`)
+        .join(', ');
+      this.lastFetchDebug = `${debug.join(' | ')} || decoded: ${counts} || hr=${String(this.cachedHr.length)} stress=${String(this.cachedStress.length)} spo2=${String(this.cachedSpo2.length)} sleep=${String(this.cachedSleep.length)} steps=${String(this.cachedSteps.length)}`;
+      this.fetched = true;
+    };
+    const promise = run().finally(() => {
+      this.fetchPromise = undefined;
     });
-
-    const debug: string[] = [];
-    const sent1 = await session.send(ACTIVITY_FETCH_1, new Uint8Array([0xa5]), { encrypted: true });
-    debug.push(`sent1=${sent1.ok ? 'ok' : sent1.error.message}`);
-    if (sent1.ok) {
-      const ack1 = await session.waitFor(ACTIVITY_FETCH_ACK_1, { timeoutMs: 5000 });
-      debug.push(`ack1=${ack1.ok ? 'ok code=' + String(ack1.value[0] ?? -1) + ' len=' + String(ack1.value.length) : ack1.error.code}`);
-      if (ack1.ok) {
-        // Send step 2 regardless of ack code to try to trigger streaming.
-        const sent2 = await session.send(ACTIVITY_FETCH_2, new Uint8Array([0xa5]), { encrypted: true });
-        debug.push(`sent2=${sent2.ok ? 'ok' : sent2.error.message}`);
-        const ack2 = await session.waitFor(ACTIVITY_FETCH_ACK_2, { timeoutMs: 5000 });
-        debug.push(`ack2=${ack2.ok ? 'ok len=' + String(ack2.value.length) : ack2.error.code}`);
-      }
-    }
-
-    // Collect streamed data for a window.
-    await new Promise((resolve) => {
-      setTimeout(resolve, 10000);
-    });
-
-    session.setFrameHandler(undefined);
-    const counts = Object.entries(inboundCounts)
-      .map(([k, v]) => `${k}:${String(v)}`)
-      .join(', ');
-    const raws = Object.entries(rawCounts)
-      .map(([k, v]) => `${k}:${String(v)}`)
-      .join(', ');
-    this.lastFetchDebug = `${debug.join(' | ')} || raw: ${raws} || decoded: ${counts} || hr=${String(this.cachedHr.length)} stress=${String(this.cachedStress.length)} spo2=${String(this.cachedSpo2.length)} sleep=${String(this.cachedSleep.length)} steps=${String(this.cachedSteps.length)}`;
-    this.fetched = true;
+    this.fetchPromise = promise;
+    await promise;
   }
 
   private notConnected<T>(): Result<T, WatchProviderError> {

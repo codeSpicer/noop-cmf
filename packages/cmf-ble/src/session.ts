@@ -46,7 +46,7 @@ interface Waiter {
 /** Correlates outgoing CMF commands with reassembled notify responses. */
 export class CmfBleSession {
   private readonly transport: BleTransport;
-  private readonly waiters = new Map<string, Waiter>();
+  private readonly waiters = new Map<string, Waiter[]>();
   private readonly chunkBuffers = new Map<string, Map<number, Uint8Array>>();
   private pending = new Uint8Array(0);
   private draining = false;
@@ -123,11 +123,28 @@ export class CmfBleSession {
   ): Promise<Result<Uint8Array, SessionError>> {
     return new Promise((resolve) => {
       const key = this.keyFor(responseCommand);
+      const timeoutMs = options.timeoutMs ?? 5000;
+      let waiter!: Waiter;
       const timer = setTimeout(() => {
-        this.waiters.delete(key);
+        const arr = this.waiters.get(key);
+        if (arr) {
+          const idx = arr.indexOf(waiter);
+          if (idx >= 0) {
+            arr.splice(idx, 1);
+          }
+          if (arr.length === 0) {
+            this.waiters.delete(key);
+          }
+        }
         resolve(err({ code: 'TIMEOUT', message: `Timed out waiting for ${key}` }));
-      }, options.timeoutMs ?? 5000);
-      this.waiters.set(key, { resolve, timer });
+      }, timeoutMs);
+      waiter = { resolve, timer };
+      let arr = this.waiters.get(key);
+      if (!arr) {
+        arr = [];
+        this.waiters.set(key, arr);
+      }
+      arr.push(waiter);
     });
   }
 
@@ -140,16 +157,42 @@ export class CmfBleSession {
   ): Promise<Result<Uint8Array, SessionError>> {
     return new Promise((resolve) => {
       const key = this.keyFor(responseCommand);
+      const timeoutMs = options.timeoutMs ?? 5000;
+      let waiter!: Waiter;
       const timer = setTimeout(() => {
-        this.waiters.delete(key);
+        const arr = this.waiters.get(key);
+        if (arr) {
+          const idx = arr.indexOf(waiter);
+          if (idx >= 0) {
+            arr.splice(idx, 1);
+          }
+          if (arr.length === 0) {
+            this.waiters.delete(key);
+          }
+        }
         resolve(err({ code: 'TIMEOUT', message: `Timed out waiting for ${key}` }));
-      }, options.timeoutMs ?? 5000);
-      this.waiters.set(key, { resolve, timer });
+      }, timeoutMs);
+      waiter = { resolve, timer };
+      let arr = this.waiters.get(key);
+      if (!arr) {
+        arr = [];
+        this.waiters.set(key, arr);
+      }
+      arr.push(waiter);
       void this.send(command, payload, options).then((sent) => {
         if (!sent.ok) {
           clearTimeout(timer);
-          this.waiters.delete(key);
-          resolve(sent);
+          const current = this.waiters.get(key);
+          if (current) {
+            const idx = current.indexOf(waiter);
+            if (idx >= 0) {
+              current.splice(idx, 1);
+            }
+            if (current.length === 0) {
+              this.waiters.delete(key);
+            }
+          }
+          resolve(err(sent.error));
         }
       });
     });
@@ -232,12 +275,15 @@ export class CmfBleSession {
       this.frameHandler(cmd, reassembled);
     }
     const key = this.keyFor({ cmd1: header.cmd1, cmd2: header.cmd2 });
-    const waiter = this.waiters.get(key);
-    if (!waiter) {
+    const arr = this.waiters.get(key);
+    if (!arr || arr.length === 0) {
       return;
     }
+    const waiter = arr.shift()!;
+    if (arr.length === 0) {
+      this.waiters.delete(key);
+    }
     clearTimeout(waiter.timer);
-    this.waiters.delete(key);
     waiter.resolve(ok(reassembled));
   }
 
