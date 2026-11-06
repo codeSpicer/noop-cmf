@@ -13,6 +13,7 @@ import type { OverviewView } from '@/lib/db-analytics';
 import { loadHealthMetrics } from '@/lib/health-metrics';
 import type { HealthMetrics } from '@/lib/health-metrics';
 import { loadStrainTrend } from '@/lib/strain-trend';
+import { computeEnergyScore } from '@noop-cmf/physio-engine';
 import { errorMessage } from '@/lib/errors';
 
 const RECOVERY_TIER_COLORS: Record<RecoveryColorTier, string> = {
@@ -97,6 +98,9 @@ export default function OverviewPage() {
           </div>
           <p data-testid="strain-target" className="mt-6 text-center text-sm text-muted">
             Optimal strain target: <span className="text-foreground">{view.strainTarget}</span>
+          </p>
+          <p data-testid="energy-score" className="mt-2 text-center text-sm text-muted">
+            Energy: <span className="text-foreground">{computeEnergyScore(view.recovery, 0, view.strain)}</span>/100
           </p>
           <div className="mt-4 flex justify-center">
             <ReadinessChip result={view.readiness} />

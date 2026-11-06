@@ -211,6 +211,18 @@ export function computeRecovery(inputs: RecoveryInputs): RecoveryPercent {
 }
 
 /**
+ * Body Battery-style energy score 1..100.
+ * Combines recovery, sleep debt, and today's strain.
+ */
+export function computeEnergyScore(recovery: number, sleepDebtMinutes: number, strain: number): number {
+  const base = Number.isFinite(recovery) ? recovery : 50;
+  const debt = Number.isFinite(sleepDebtMinutes) ? sleepDebtMinutes : 0;
+  const s = Number.isFinite(strain) ? strain : 0;
+  const raw = base * (1 - (s / 21) * 0.3) - debt * 0.05;
+  return Math.max(1, Math.min(100, Math.round(raw)));
+}
+
+/**
  * Optimal strain target for today, one decimal (spec equation [F]).
  */
 export function computeStrainTarget(recovery: number): number {

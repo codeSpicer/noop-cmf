@@ -124,6 +124,7 @@ export class CmfBleSession {
     return new Promise((resolve) => {
       const key = this.keyFor(responseCommand);
       const timeoutMs = options.timeoutMs ?? 5000;
+      // eslint-disable-next-line prefer-const
       let waiter!: Waiter;
       const timer = setTimeout(() => {
         const arr = this.waiters.get(key);
@@ -158,6 +159,7 @@ export class CmfBleSession {
     return new Promise((resolve) => {
       const key = this.keyFor(responseCommand);
       const timeoutMs = options.timeoutMs ?? 5000;
+      // eslint-disable-next-line prefer-const
       let waiter!: Waiter;
       const timer = setTimeout(() => {
         const arr = this.waiters.get(key);
@@ -279,7 +281,11 @@ export class CmfBleSession {
     if (!arr || arr.length === 0) {
       return;
     }
-    const waiter = arr.shift()!;
+    const shifted = arr.shift();
+    if (shifted === undefined) {
+      return;
+    }
+    const waiter = shifted;
     if (arr.length === 0) {
       this.waiters.delete(key);
     }

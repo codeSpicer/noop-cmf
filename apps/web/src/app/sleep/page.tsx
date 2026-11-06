@@ -6,10 +6,12 @@ import { Hypnogram } from '@/components/charts/Hypnogram';
 import { getDatabase } from '@/db/database';
 import { loadSleep } from '@/lib/db-analytics';
 import type { SleepView } from '@/lib/db-analytics';
+import { loadSleepConsistency } from '@/lib/sleep-consistency';
 import { errorMessage } from '@/lib/errors';
 
 export default function SleepPage() {
   const [view, setView] = useState<SleepView | null>(null);
+  const [consistency, setConsistency] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,9 +20,10 @@ export default function SleepPage() {
     async function load(): Promise<void> {
       try {
         const db = getDatabase();
-        const data = await loadSleep(db);
+        const [data, c] = await Promise.all([loadSleep(db), loadSleepConsistency(db)]);
         if (cancelled) return;
         setView(data);
+        setConsistency(c);
         setLoaded(true);
       } catch (err) {
         if (!cancelled) setError(errorMessage(err, 'Failed to load sleep.'));
@@ -62,6 +65,11 @@ export default function SleepPage() {
         <p data-testid="sleep-total" className="text-muted">
           Total sleep: <span className="text-foreground">{Math.round(view.summary.totalSleepMinutes)} min</span>
         </p>
+        {consistency !== null ? (
+          <p data-testid="sleep-consistency" className="text-muted">
+            Sleep consistency: <span className="text-foreground">{consistency}/100</span>
+          </p>
+        ) : null}
       </div>
     </section>
   );

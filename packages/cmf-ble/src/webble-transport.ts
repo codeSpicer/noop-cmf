@@ -40,6 +40,7 @@ export interface BluetoothCharacteristicLike {
   writeValue(value: ArrayBuffer | Uint8Array): Promise<void>;
   startNotifications(): Promise<BluetoothCharacteristicLike>;
   addEventListener(type: string, handler: (event: Event) => void): void;
+  removeEventListener?(type: string, handler: (event: Event) => void): void;
 }
 
 export interface BluetoothLike {
@@ -204,7 +205,7 @@ export class WebBleTransport implements BleTransport {
     const byHandler = this.listeners.get(uuid);
     if (byHandler) {
       for (const [handler, listener] of byHandler) {
-        target.removeEventListener('characteristicvaluechanged', listener);
+        target.removeEventListener?.('characteristicvaluechanged', listener);
         this.handlers.delete(handler);
       }
       this.listeners.delete(uuid);

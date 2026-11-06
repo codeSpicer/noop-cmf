@@ -9,6 +9,7 @@ import { loadStrain } from '@/lib/db-analytics';
 import type { StrainView } from '@/lib/db-analytics';
 import { loadStrainTrend } from '@/lib/strain-trend';
 import { loadWorkoutTrimp } from '@/lib/workout-trimp';
+import { loadIntensityMinutes } from '@/lib/intensity-minutes';
 import type { WorkoutTrimp } from '@/lib/workout-trimp';
 import { errorMessage } from '@/lib/errors';
 
@@ -24,6 +25,7 @@ export default function StrainPage() {
   const [view, setView] = useState<StrainView | null>(null);
   const [trend, setTrend] = useState<number[]>([]);
   const [workouts, setWorkouts] = useState<WorkoutTrimp[]>([]);
+  const [intensity, setIntensity] = useState<{ moderate: number; vigorous: number } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,15 +34,17 @@ export default function StrainPage() {
     async function load(): Promise<void> {
       try {
         const db = getDatabase();
-        const [data, tr, wt] = await Promise.all([
+        const [data, tr, wt, im] = await Promise.all([
           loadStrain(db),
           loadStrainTrend(db, 7),
           loadWorkoutTrimp(db),
+          loadIntensityMinutes(db, 7),
         ]);
         if (cancelled) return;
         setView(data);
         setTrend(tr);
         setWorkouts(wt);
+        setIntensity(im);
         setLoaded(true);
       } catch (err) {
         if (!cancelled) setError(errorMessage(err, 'Failed to load strain.'));
@@ -77,6 +81,11 @@ export default function StrainPage() {
           <p data-testid="trimp-value" className="text-muted">
             Workout TRIMP: <span className="text-foreground">{view.trimp.toFixed(1)}</span>
           </p>
+          {intensity ? (
+            <p data-testid="intensity-minutes" className="text-muted">
+              Intensity minutes: <span className="text-foreground">{intensity.moderate} moderate, {intensity.vigorous} vigorous</span>
+            </p>
+          ) : null}
           <div
             className="mt-4 flex h-8 w-full overflow-hidden rounded-lg"
             data-testid="zone-bars"

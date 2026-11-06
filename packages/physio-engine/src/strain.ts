@@ -155,6 +155,30 @@ export function computeDayStrain(
   return { strain, trimp, zoneMinutes };
 }
 
+/** Result of intensity-minute tallying. */
+export interface IntensityMinutes {
+  readonly moderate: number;
+  readonly vigorous: number;
+}
+
+/**
+ * Tally moderate (zone 2+) and vigorous (zone 4+) minutes from HR samples.
+ */
+export function computeIntensityMinutes(
+  samples: readonly HrSampleInput[],
+  rhr: number,
+  hrMax: number,
+): IntensityMinutes {
+  let moderate = 0;
+  let vigorous = 0;
+  for (const sample of samples) {
+    const zone = classifyHrZone(sample.bpm, rhr, hrMax);
+    if (zone >= 2) moderate += 1;
+    if (zone >= 4) vigorous += 1;
+  }
+  return { moderate, vigorous };
+}
+
 /** Validate resting/max heart-rate baselines used across the engine. */
 export function assertValidBaselines(rhr: number, hrMax: number): void {
   if (!Number.isFinite(rhr) || rhr < BPM_MIN || rhr > BPM_MAX) {

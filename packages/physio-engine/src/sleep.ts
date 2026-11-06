@@ -84,6 +84,27 @@ export function analyzeSleep(segments: readonly SleepSegment[]): SleepSummary {
  *
  * `sleepDebtMinutes` is the carried prior debt (positive = owed sleep).
  */
+/**
+ * Sleep consistency score 0..100 from bed/wake times (minutes-of-day).
+ * Higher = more regular. Returns 0 for fewer than 2 sessions.
+ */
+export function computeSleepConsistency(sessions: readonly { readonly start: number; readonly end: number }[]): number {
+  if (sessions.length < 2) {
+    return 0;
+  }
+  const beds = sessions.map((s) => (s.start / 60000) % (24 * 60));
+  const wakes = sessions.map((s) => (s.end / 60000) % (24 * 60));
+  const std = (values: readonly number[]): number => {
+    const m = values.reduce((a, b) => a + b, 0) / values.length;
+    const v = values.reduce((a, b) => a + (b - m) * (b - m), 0) / values.length;
+    return Math.sqrt(v);
+  };
+  const bedStd = std(beds);
+  const wakeStd = std(wakes);
+  const score = 100 - (bedStd + wakeStd) / 2;
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
 export function computeSleepNeedTonight(strainToday: number, sleepDebtMinutes: number): number {
   const need =
     BASELINE_SLEEP_MINUTES +
