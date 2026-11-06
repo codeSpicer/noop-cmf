@@ -1,24 +1,34 @@
-import { describe, expect, it, afterEach } from 'vitest';
+import { describe, expect, it, afterEach, beforeEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { clearDatabase, getDatabase } from '@/db/database';
+import { EpochMsSchema } from '@noop-cmf/types';
+import type { HrSample } from '@noop-cmf/types';
 import StrainPage from './page';
 
+const T0 = Date.UTC(2024, 0, 30);
+function hr(ts: number, bpm: number): HrSample {
+  return { timestamp: EpochMsSchema.parse(ts), bpm: bpm as HrSample['bpm'] };
+}
+
 describe('StrainPage', () => {
-  afterEach(() => {
-    cleanup();
+  afterEach(() => { cleanup(); });
+  beforeEach(async () => {
+    await clearDatabase(getDatabase());
   });
 
-  it('shows TRIMP and zone bars in demo mode', async () => {
-    window.history.replaceState({}, '', '/strain?demo=true');
+  it('shows an empty state when no data is synced', async () => {
+    render(<StrainPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/No data yet/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows trimp when data is synced', async () => {
+    const db = getDatabase();
+    await db.hrSamples.bulkPut([hr(T0 - 1000, 120), hr(T0 - 500, 130)]);
     render(<StrainPage />);
     await waitFor(() => {
       expect(screen.getByTestId('trimp-value')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('zone-bars')).toBeInTheDocument();
-  }, 30000);
-
-  it('shows a helpful error outside demo mode', async () => {
-    window.history.replaceState({}, '', '/strain');
-    render(<StrainPage />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('demo mode');
   });
 });

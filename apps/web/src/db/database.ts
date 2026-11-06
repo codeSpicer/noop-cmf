@@ -18,6 +18,11 @@ export interface StoredCycle extends PhysiologicalCycle {
   readonly id: string;
 }
 
+export interface StoredAuthKey {
+  readonly id: string;
+  readonly key: string;
+}
+
 export class NoopCmfDatabase extends Dexie {
   hrSamples!: Table<HrSample, number>;
   stressSamples!: Table<StressSample, number>;
@@ -27,6 +32,7 @@ export class NoopCmfDatabase extends Dexie {
   workouts!: Table<Workout, string>;
   journalEntries!: Table<JournalEntry, string>;
   cycles!: Table<StoredCycle, string>;
+  authKeys!: Table<StoredAuthKey, string>;
 
   constructor(name = 'noop-cmf') {
     super(name);
@@ -41,6 +47,9 @@ export class NoopCmfDatabase extends Dexie {
     });
     this.version(2).stores({
       steps: 'timestamp',
+    });
+    this.version(3).stores({
+      authKeys: 'id',
     });
   }
 }

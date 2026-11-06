@@ -8,10 +8,8 @@ test('morning journal submission recalculates impact bars', async ({ page }) => 
   await expect(page.getByTestId('impact-bars')).toBeVisible();
 });
 
-test('mock WebBLE sync and push recovery to watch', async ({ page }) => {
-  await page.goto('/sync?demo=true');
-  await page.getByTestId('demo-sync').click();
-  await expect(page.getByTestId('sync-status')).toContainText('Synced', { timeout: 30_000 });
+test('push recovery to watch', async ({ page }) => {
+  await page.goto('/sync');
   await page.getByTestId('push-recovery').click();
-  await expect(page.getByTestId('sync-status')).toContainText('Recovery pushed to watch.');
+  await expect(page.getByTestId('sync-status')).toContainText('Recovery pushed to watch.', { timeout: 30_000 });
 });

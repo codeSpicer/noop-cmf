@@ -12,3 +12,4 @@ export * from './mock-transport.js';
 export * from './webble-transport.js';
 export * from './session.js';
 export * from './gadgetbridge.js';
+export * from './cmf-ble-provider.js';

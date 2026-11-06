@@ -64,6 +64,7 @@ export class WebBleTransport implements BleTransport {
   private shellWriteChar: BluetoothCharacteristicLike | undefined;
   private shellNotifyChar: BluetoothCharacteristicLike | undefined;
   private readonly handlers = new Set<NotifyHandler>();
+  private readonly listeners = new Map<string, Map<NotifyHandler, (event: Event) => void>>();
 
   constructor(bluetooth: BluetoothLike) {
     this.bluetooth = bluetooth;
@@ -113,6 +114,7 @@ export class WebBleTransport implements BleTransport {
     this.notifyChar = undefined;
     this.shellWriteChar = undefined;
     this.shellNotifyChar = undefined;
+    this.listeners.clear();
     this.handlers.clear();
     return Promise.resolve(ok(undefined));
   }
@@ -170,13 +172,20 @@ export class WebBleTransport implements BleTransport {
     }
     try {
       await target.startNotifications();
-      target.addEventListener('characteristicvaluechanged', (event) => {
+      const listener = (event: Event) => {
         const source = event.target as { value?: DataView } | null;
         const value = source?.value;
         if (value) {
           handler(new Uint8Array(value.buffer, value.byteOffset, value.byteLength));
         }
-      });
+      };
+      target.addEventListener('characteristicvaluechanged', listener);
+      let byHandler = this.listeners.get(uuid);
+      if (!byHandler) {
+        byHandler = new Map();
+        this.listeners.set(uuid, byHandler);
+      }
+      byHandler.set(handler, listener);
       this.handlers.add(handler);
       return ok(undefined);
     } catch (error) {
@@ -188,10 +197,18 @@ export class WebBleTransport implements BleTransport {
   }
 
   stopNotifications(uuid: string): Promise<Result<void, TransportError>> {
-    if (!this.notifyTarget(uuid)) {
+    const target = this.notifyTarget(uuid);
+    if (!target) {
       return Promise.resolve(err({ code: 'NOTIFY_FAILED', message: `Cannot stop ${uuid}` }));
     }
-    this.handlers.clear();
+    const byHandler = this.listeners.get(uuid);
+    if (byHandler) {
+      for (const [handler, listener] of byHandler) {
+        target.removeEventListener('characteristicvaluechanged', listener);
+        this.handlers.delete(handler);
+      }
+      this.listeners.delete(uuid);
+    }
     return Promise.resolve(ok(undefined));
   }
 }

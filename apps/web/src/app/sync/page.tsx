@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { GadgetbridgeSqliteProvider, loadSqlJs } from '@noop-cmf/cmf-ble';
+import { CmfBleProvider, GadgetbridgeSqliteProvider, WebBleTransport, getNavigatorBluetooth, loadSqlJs } from '@noop-cmf/cmf-ble';
 import {
   EpochMsSchema,
   MillisecondsSchema,
@@ -9,14 +9,14 @@ import {
   StrainScoreSchema,
 } from '@noop-cmf/types';
 import { clearDatabase, getDatabase } from '@/db/database';
-import { createDemoProvider, demoPersonas, isDemoMode } from '@/lib/demo-provider';
+import { createDemoProvider } from '@/lib/demo-provider';
 import { errorMessage } from '@/lib/errors';
 import { importAll } from '@/lib/import';
+import { loadAuthKey, saveAuthKey } from '@/lib/ble-auth-store';
 
 /** Sync route: demo persona selector, Gadgetbridge dropzone, mock BLE sync. */
 export default function SyncPage() {
   const [status, setStatus] = useState('Idle');
-  const [persona, setPersona] = useState('endurance-runner');
 
   useEffect(() => {
     let cancelled = false;
@@ -38,23 +38,6 @@ export default function SyncPage() {
       cancelled = true;
     };
   }, []);
-
-  async function runDemoSync(): Promise<void> {
-    setStatus('Syncing demo data…');
-    try {
-      const provider = await createDemoProvider(`?demo=true&persona=${persona}`);
-      const db = getDatabase();
-      await clearDatabase(db);
-      const end = EpochMsSchema.parse(Date.UTC(2024, 0, 30));
-      const start = EpochMsSchema.parse(end - 30 * 86_400_000);
-      const counts = await importAll(provider, { start, end }, db);
-      setStatus(
-        `Synced ${String(counts.hr)} HR samples, ${String(counts.workouts)} workouts (${persona}).`,
-      );
-    } catch (err) {
-      setStatus(`Sync failed: ${errorMessage(err, 'unknown error')}`);
-    }
-  }
 
   async function handleDrop(file: File): Promise<void> {
     setStatus(`Parsing ${file.name}…`);
@@ -94,6 +77,44 @@ export default function SyncPage() {
     }
   }
 
+  async function runBleSync(): Promise<void> {
+    setStatus('Connecting to watch…');
+    try {
+      const bluetooth = getNavigatorBluetooth();
+      if (!bluetooth) {
+        setStatus('Web Bluetooth is not available in this browser.');
+        return;
+      }
+      const transport = new WebBleTransport(bluetooth);
+      const authKey = await loadAuthKey('cmf-ble');
+      const provider = new CmfBleProvider(
+        authKey === undefined
+          ? { model: 'noop-cmf', transport }
+          : { model: 'noop-cmf', authKey, transport },
+      );
+      const connected = await provider.connect();
+      if (!connected.ok) {
+        setStatus(`Connect failed: ${connected.error.message}`);
+        return;
+      }
+      if (provider.authKey) {
+        await saveAuthKey('cmf-ble', provider.authKey);
+      }
+      setStatus('Syncing from watch…');
+      const db = getDatabase();
+      await clearDatabase(db);
+      const end = EpochMsSchema.parse(Date.now());
+      const start = EpochMsSchema.parse(end - 30 * 86_400_000);
+      const counts = await importAll(provider, { start, end }, db);
+      await provider.disconnect();
+      setStatus(
+        `BLE sync: ${String(counts.hr)} HR, ${String(counts.stress)} stress, ${String(counts.spo2)} spo2, ${String(counts.sleep)} sleep, ${String(counts.steps)} steps. Debug: ${provider.lastFetchDebug}`,
+      );
+    } catch (err) {
+      setStatus(`BLE sync failed: ${errorMessage(err, 'unknown error')}`);
+    }
+  }
+
   return (
     <section aria-label="Sync" className="space-y-4">
       <header>
@@ -104,34 +125,7 @@ export default function SyncPage() {
         {status}
       </p>
       <div className="rounded-2xl border border-line bg-card p-6">
-        <label htmlFor="persona" className="mr-2 text-sm text-muted">
-          Demo persona
-        </label>
-        <select
-          id="persona"
-          value={persona}
-          onChange={(event) => {
-            setPersona(event.target.value);
-          }}
-          className="rounded-lg border border-line bg-void p-2 text-sm text-foreground"
-          data-testid="persona-select"
-        >
-          {demoPersonas().map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={() => {
-            void runDemoSync();
-          }}
-          className="ml-3 rounded-full bg-strain px-4 py-2 text-sm font-semibold text-[#04121f]"
-          data-testid="demo-sync"
-        >
-          Run demo sync
-        </button>
+        <p className="text-sm text-muted">Import a Gadgetbridge SQLite .db file or sync from a connected watch.</p>
       </div>
       <div
         className="rounded-2xl border-2 border-dashed border-line p-8 text-center text-sm text-muted"
@@ -174,9 +168,16 @@ export default function SyncPage() {
       >
         Push Recovery to Watch
       </button>
-      {isDemoMode(typeof window === 'undefined' ? '' : window.location.search) ? (
-        <p className="text-sm text-muted">Demo mode active.</p>
-      ) : null}
+      <button
+        type="button"
+        onClick={() => {
+          void runBleSync();
+        }}
+        className="rounded-full bg-strain px-5 py-2 text-sm font-semibold text-[#04121f]"
+        data-testid="ble-sync"
+      >
+        Connect &amp; sync (watch)
+      </button>
     </section>
   );
 }

@@ -17,7 +17,12 @@
       "Shell(sqlite3:*)",
       "Shell(adb:*)",
       "Shell(sqlite3 packages/cmf-ble/fixtures/real-gadgetbridge-cmf-pro2.db \"SELECT sql FROM sqlite_master WHERE type='table' AND name LIKE 'CMF%';\" 2>&1; echo '--- sample duration/stage values:'; sqlite3 packages/cmf-ble/fixtures/real-gadgetbridge-cmf-pro2.db \"SELECT DISTINCT STAGE FROM CMF_SLEEP_STAGE_SAMPLE; SELECT DISTINCT RAW_KIND FROM CMF_ACTIVITY_SAMPLE;\" 2>&1; echo '--- METADATA sample:'; sqlite3 packages/cmf-ble/fixtures/real-gadgetbridge-cmf-pro2.db \"SELECT METADATA FROM CMF_SLEEP_SESSION_SAMPLE LIMIT 1;\" 2>&1; echo '--- SUMMARY_DATA:'; sqlite3 packages/cmf-ble/fixtures/real-gadgetbridge-cmf-pro2.db \"SELECT _id, NAME, ACTIVITY_KIND, SUMMARY_DATA FROM BASE_ACTIVITY_SUMMARY LIMIT 2;\" 2>&1)",
-      "Shell(cd \"$COMMANDCODE_SCRATCHPAD/gb-source\" && git log --oneline -3 2>&1; grep -rl \"CmfWatchPro2\\|CMF_WATCH_PRO_2\\|NOTHING_CMF\" app/src/main/java --include=\"*.java\" | head -10)"
+      "Shell(cd \"$COMMANDCODE_SCRATCHPAD/gb-source\" && git log --oneline -3 2>&1; grep -rl \"CmfWatchPro2\\|CMF_WATCH_PRO_2\\|NOTHING_CMF\" app/src/main/java --include=\"*.java\" | head -10)",
+      "Shell(cd /Users/akshat/repos/noop-cmf && cat > apps/web/verify-new-export.mjs <<'EOF' import { parseGadgetbridgeFile, loadSqlJs } from '@noop-cmf/cmf-ble'; import fs from 'node:fs'; await loadSqlJs(); const bytes = new Uint8Array(fs.readFileSync('/Users/akshat/repos/noop-cmf/gadgetbridge_20261023090954/cmf_export/database/Gadgetbridge')); const p = await parseGadgetbridgeFile(bytes); console.log('HR:', p.hrSamples.length); console.log('Stress:', p.stressSamples.length); console.log('SpO2:', p.spo2Samples.length); console.log('Sleep segments:', p.sleepSegments.length); console.log('Sleep stages:', JSON.stringify(p.sleepSegments.reduce((a, s) => { a[s.stage] = (a[s.stage] ?? 0) + 1; return a; }, {}))); console.log('Workouts:', p.workouts.length, p.workouts.map((w) => `${w.activityType}(${Math.round((w.end - w.start) / 1000)}s)`).join(', ')); console.log('Steps:', p.steps.length, 'first3:', p.steps.slice(0, 3).map((s) => s.steps).join(',')); EOF pnpm --filter web exec node ./verify-new-export.mjs 2>&1 | tail -20; rm -f apps/web/verify-new-export.mjs)",
+      "Shell(cd:*)",
+      "Shell(awk:*)",
+      "Shell(sed:*)",
+      "Shell(npx vitest run packages/cmf-ble/src/cmf-ble-provider.test.ts 2 >& 1)"
     ],
     "deny": [],
     "defaultMode": "default"

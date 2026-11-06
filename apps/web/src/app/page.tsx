@@ -1,18 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  computeDayStrain,
-  computeRecovery,
-  computeStrainTarget,
-  analyzeSleep,
-} from '@noop-cmf/physio-engine';
-import { EpochMsSchema, getRecoveryTier } from '@noop-cmf/types';
 import type { RecoveryColorTier } from '@noop-cmf/types';
 import { GaugeRing } from '@/components/gauges/GaugeRing';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Sparkline } from '@/components/charts/Sparkline';
-import { createDemoProvider, isDemoMode } from '@/lib/demo-provider';
+import { ReadinessChip } from '@/components/ReadinessChip';
+import { HealthMonitorCard } from '@/components/HealthMonitorCard';
+import { getDatabase } from '@/db/database';
+import { loadOverview } from '@/lib/db-analytics';
+import type { OverviewView } from '@/lib/db-analytics';
+import { loadHealthMetrics } from '@/lib/health-metrics';
+import type { HealthMetrics } from '@/lib/health-metrics';
+import { loadStrainTrend } from '@/lib/strain-trend';
 import { errorMessage } from '@/lib/errors';
 
 const RECOVERY_TIER_COLORS: Record<RecoveryColorTier, string> = {
@@ -21,60 +21,30 @@ const RECOVERY_TIER_COLORS: Record<RecoveryColorTier, string> = {
   red: '#FF0055',
 };
 
-interface OverviewStats {
-  strain: number;
-  recovery: number;
-  sleepPerformance: number;
-  strainTarget: number;
-  tier: RecoveryColorTier;
-}
-
-/** Overview route: triple SVG gauge rings + 7-day sparklines (demo data). */
 export default function OverviewPage() {
-  const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [view, setView] = useState<OverviewView | null>(null);
+  const [health, setHealth] = useState<HealthMetrics | null>(null);
+  const [trend, setTrend] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     async function load(): Promise<void> {
       try {
-        const search = window.location.search;
-        if (!isDemoMode(search)) {
-          setError('Connect a watch or enable demo mode (?demo=true).');
-          return;
-        }
-        const provider = await createDemoProvider(search);
-        const dayMs = 86_400_000;
-        const end = EpochMsSchema.parse(Date.UTC(2024, 0, 30));
-        const start = EpochMsSchema.parse(end - dayMs);
-        const range = { start, end };
-        const hr = await provider.getHeartRateSamples(range);
-        const sleep = await provider.getSleepSegments(range);
-        if (!hr.ok || !sleep.ok) {
-          setError('Demo data unavailable.');
-          return;
-        }
-        const breakdown = computeDayStrain(hr.value, 50, 190);
-        const summary = analyzeSleep(sleep.value);
-        const recovery = computeRecovery({
-          ehrvToday: 100,
-          rhrToday: 50,
-          sleepPerformance: summary.sleepPerformance,
-          history: [],
-        });
-        if (!cancelled) {
-          setStats({
-            strain: breakdown.strain,
-            recovery,
-            sleepPerformance: summary.sleepPerformance,
-            strainTarget: computeStrainTarget(recovery),
-            tier: getRecoveryTier(recovery),
-          });
-        }
+        const db = getDatabase();
+        const [data, hm, tr] = await Promise.all([
+          loadOverview(db),
+          loadHealthMetrics(db),
+          loadStrainTrend(db, 7),
+        ]);
+        if (cancelled) return;
+        setView(data);
+        setHealth(hm);
+        setTrend(tr);
+        setLoaded(true);
       } catch (err) {
-        if (!cancelled) {
-          setError(errorMessage(err, 'Load failed'));
-        }
+        if (!cancelled) setError(errorMessage(err, 'Load failed'));
       }
     }
     void load();
@@ -86,8 +56,11 @@ export default function OverviewPage() {
   if (error) {
     return <p role="alert">{error}</p>;
   }
-  if (!stats) {
+  if (!loaded) {
     return <p aria-busy="true">Loading overview…</p>;
+  }
+  if (!view) {
+    return <p>No data yet — sync a watch.</p>;
   }
   return (
     <section aria-label="Overview" className="space-y-4">
@@ -99,22 +72,22 @@ export default function OverviewPage() {
         <div className="rounded-2xl border border-line bg-card p-6">
           <div className="flex flex-wrap items-center justify-center gap-6">
             <GaugeRing
-              value={stats.recovery}
+              value={view.recovery}
               max={99}
-              color={RECOVERY_TIER_COLORS[stats.tier]}
-              label={`Recovery ${stats.tier}`}
+              color={RECOVERY_TIER_COLORS[view.tier]}
+              label={`Recovery ${view.tier}`}
               suffix="%"
               testId="recovery-ring"
             />
             <GaugeRing
-              value={stats.strain}
+              value={view.strain}
               max={21}
               color="#0096FF"
               label="Strain"
               testId="strain-ring"
             />
             <GaugeRing
-              value={stats.sleepPerformance}
+              value={view.sleepPerformance}
               max={100}
               color="#7B61FF"
               label="Sleep"
@@ -123,14 +96,20 @@ export default function OverviewPage() {
             />
           </div>
           <p data-testid="strain-target" className="mt-6 text-center text-sm text-muted">
-            Optimal strain target: <span className="text-foreground">{stats.strainTarget}</span>
+            Optimal strain target: <span className="text-foreground">{view.strainTarget}</span>
           </p>
+          <div className="mt-4 flex justify-center">
+            <ReadinessChip result={view.readiness} />
+          </div>
         </div>
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <HealthMonitorCard metrics={health} />
       </ErrorBoundary>
       <ErrorBoundary>
         <div className="rounded-2xl border border-line bg-card p-4">
           <Sparkline
-            values={[8, 12, 9, 14, 11, 13, stats.strain]}
+            values={trend.length > 0 ? trend : [view.strain]}
             color="#0096FF"
             label="7-day strain trend"
             testId="strain-spark"

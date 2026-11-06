@@ -51,6 +51,7 @@ export class CmfBleSession {
   private pending = new Uint8Array(0);
   private draining = false;
   private key: Uint8Array | undefined;
+  private frameHandler: ((command: CmfCommandRef, payload: Uint8Array) => void) | undefined;
 
   constructor(transport: BleTransport) {
     this.transport = transport;
@@ -59,6 +60,11 @@ export class CmfBleSession {
   /** Install the AES session key (absent while unauthenticated). */
   setKey(key: Uint8Array | undefined): void {
     this.key = key;
+  }
+
+  /** Install a handler invoked for every reassembled inbound frame. */
+  setFrameHandler(handler: ((command: CmfCommandRef, payload: Uint8Array) => void) | undefined): void {
+    this.frameHandler = handler;
   }
 
   /** Subscribe to the CMF notify characteristic and start reassembling frames. */
@@ -108,6 +114,21 @@ export class CmfBleSession {
       }
     }
     return ok(undefined);
+  }
+
+  /** Wait for the next inbound frame matching `responseCommand` without sending. */
+  waitFor(
+    responseCommand: CmfCommandRef,
+    options: { timeoutMs?: number } = {},
+  ): Promise<Result<Uint8Array, SessionError>> {
+    return new Promise((resolve) => {
+      const key = this.keyFor(responseCommand);
+      const timer = setTimeout(() => {
+        this.waiters.delete(key);
+        resolve(err({ code: 'TIMEOUT', message: `Timed out waiting for ${key}` }));
+      }, options.timeoutMs ?? 5000);
+      this.waiters.set(key, { resolve, timer });
+    });
   }
 
   /** Send a command and resolve with the reassembled payload of `responseCommand`. */
@@ -206,6 +227,9 @@ export class CmfBleSession {
     );
     if (!reassembled) {
       return;
+    }
+    if (this.frameHandler && cmd) {
+      this.frameHandler(cmd, reassembled);
     }
     const key = this.keyFor({ cmd1: header.cmd1, cmd2: header.cmd2 });
     const waiter = this.waiters.get(key);

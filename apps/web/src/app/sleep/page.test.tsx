@@ -1,24 +1,34 @@
-import { describe, expect, it, afterEach } from 'vitest';
+import { describe, expect, it, afterEach, beforeEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { clearDatabase, getDatabase } from '@/db/database';
+import { EpochMsSchema } from '@noop-cmf/types';
+import type { SleepSegment } from '@noop-cmf/types';
 import SleepPage from './page';
 
+const T0 = Date.UTC(2024, 0, 30);
+function sl(start: number, end: number): SleepSegment {
+  return { start: EpochMsSchema.parse(start), end: EpochMsSchema.parse(end), stage: 'deep' };
+}
+
 describe('SleepPage', () => {
-  afterEach(() => {
-    cleanup();
+  afterEach(() => { cleanup(); });
+  beforeEach(async () => {
+    await clearDatabase(getDatabase());
   });
 
-  it('shows the hypnogram and sleep need in demo mode', async () => {
-    window.history.replaceState({}, '', '/sleep?demo=true');
+  it('shows an empty state when no data is synced', async () => {
+    render(<SleepPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/No data yet/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows hypnogram when data is synced', async () => {
+    const db = getDatabase();
+    await db.sleepSegments.put(sl(T0 - 3600000, T0 - 1800000));
     render(<SleepPage />);
     await waitFor(() => {
       expect(screen.getByTestId('hypnogram')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('sleep-need')).toBeInTheDocument();
-  }, 30000);
-
-  it('shows a helpful error outside demo mode', async () => {
-    window.history.replaceState({}, '', '/sleep');
-    render(<SleepPage />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('demo mode');
   });
 });

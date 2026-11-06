@@ -1,11 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { computeDayStrain, type HrZone } from '@noop-cmf/physio-engine';
-import { EpochMsSchema } from '@noop-cmf/types';
+import { type HrZone } from '@noop-cmf/physio-engine';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Sparkline } from '@/components/charts/Sparkline';
-import { createDemoProvider, isDemoMode } from '@/lib/demo-provider';
+import { getDatabase } from '@/db/database';
+import { loadStrain } from '@/lib/db-analytics';
+import type { StrainView } from '@/lib/db-analytics';
+import { loadStrainTrend } from '@/lib/strain-trend';
+import { loadWorkoutTrimp } from '@/lib/workout-trimp';
+import type { WorkoutTrimp } from '@/lib/workout-trimp';
 import { errorMessage } from '@/lib/errors';
 
 const ZONE_COLORS: Record<HrZone, string> = {
@@ -16,40 +20,30 @@ const ZONE_COLORS: Record<HrZone, string> = {
   5: '#ff0055',
 };
 
-const NO_DEMO_MESSAGE = 'Connect a watch or enable demo mode (?demo=true).';
-
-/** Strain route: logarithmic curve info, HR zone bars, TRIMP breakdown. */
 export default function StrainPage() {
-  const [zones, setZones] = useState<Record<HrZone, number> | null>(null);
-  const [trimp, setTrimp] = useState<number | null>(null);
+  const [view, setView] = useState<StrainView | null>(null);
+  const [trend, setTrend] = useState<number[]>([]);
+  const [workouts, setWorkouts] = useState<WorkoutTrimp[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load(): Promise<void> {
       try {
-        if (!isDemoMode(window.location.search)) {
-          if (!cancelled) setError(NO_DEMO_MESSAGE);
-          return;
-        }
-        const provider = await createDemoProvider(window.location.search);
-        const end = EpochMsSchema.parse(Date.UTC(2024, 0, 30));
-        const start = EpochMsSchema.parse(end - 86_400_000);
-        const hr = await provider.getHeartRateSamples({ start, end });
-        if (cancelled) {
-          return;
-        }
-        if (!hr.ok) {
-          setError(hr.error.message);
-          return;
-        }
-        const breakdown = computeDayStrain(hr.value, 50, 190);
-        setZones(breakdown.zoneMinutes);
-        setTrimp(breakdown.trimp);
+        const db = getDatabase();
+        const [data, tr, wt] = await Promise.all([
+          loadStrain(db),
+          loadStrainTrend(db, 7),
+          loadWorkoutTrimp(db),
+        ]);
+        if (cancelled) return;
+        setView(data);
+        setTrend(tr);
+        setWorkouts(wt);
+        setLoaded(true);
       } catch (err) {
-        if (!cancelled) {
-          setError(errorMessage(err, 'Failed to load strain.'));
-        }
+        if (!cancelled) setError(errorMessage(err, 'Failed to load strain.'));
       }
     }
     void load();
@@ -61,11 +55,14 @@ export default function StrainPage() {
   if (error) {
     return <p role="alert">{error}</p>;
   }
-  if (!zones || trimp === null) {
+  if (!loaded) {
     return <p aria-busy="true">Loading strain…</p>;
   }
-  const totals = Object.values(zones);
-  const total = totals.reduce((sum, minutes) => sum + minutes, 0);
+  if (!view) {
+    return <p>No data yet — sync a watch.</p>;
+  }
+  const zones = view.zones;
+  const total = Object.values(zones).reduce((sum, minutes) => sum + minutes, 0);
   return (
     <section aria-label="Strain" className="space-y-4">
       <header>
@@ -74,8 +71,11 @@ export default function StrainPage() {
       </header>
       <ErrorBoundary>
         <div className="rounded-2xl border border-line bg-card p-6">
+          <p data-testid="strain-value" className="text-muted">
+            Strain: <span className="text-foreground">{view.strain.toFixed(1)}</span>
+          </p>
           <p data-testid="trimp-value" className="text-muted">
-            Workout TRIMP: <span className="text-foreground">{trimp.toFixed(1)}</span>
+            Workout TRIMP: <span className="text-foreground">{view.trimp.toFixed(1)}</span>
           </p>
           <div
             className="mt-4 flex h-8 w-full overflow-hidden rounded-lg"
@@ -98,14 +98,24 @@ export default function StrainPage() {
             <span>Zone 1</span>
             <span>Zone 5</span>
           </div>
+          {workouts.length > 0 ? (
+            <ul className="mt-4 space-y-1 text-sm text-muted" data-testid="workout-trimp-list">
+              {workouts.map((w) => (
+                <li key={w.id}>
+                  {w.activityType}: TRIMP {w.trimp.toFixed(1)}, strain {w.strain.toFixed(1)}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       </ErrorBoundary>
       <ErrorBoundary>
         <div className="rounded-2xl border border-line bg-card p-4">
           <Sparkline
-            values={[total, total * 0.8, total * 1.1]}
+            values={trend.length > 0 ? trend : [view.strain]}
             color="#0096FF"
-            label="Zone minutes trend"
+            label="7-day strain trend"
+            testId="strain-spark"
           />
         </div>
       </ErrorBoundary>
