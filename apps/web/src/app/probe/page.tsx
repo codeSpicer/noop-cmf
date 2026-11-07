@@ -10,6 +10,8 @@ import {
   commandFromCodes,
   pairWatch,
   authenticate,
+  ACTIVITY_FETCH_1,
+  ACTIVITY_FETCH_2,
   VENDOR_FFF1_NOTIFY_CHAR_UUID,
   type CmfCommandDef,
 } from '@noop-cmf/cmf-ble';
@@ -116,6 +118,22 @@ export default function ProbePage() {
     append('--- discovery done ---');
   }
 
+  async function runFullFetch(): Promise<void> {
+    if (!session) {
+      setStatus('Not connected');
+      return;
+    }
+    append('--- full fetch start ---');
+    const sent1 = await session.send(ACTIVITY_FETCH_1, new Uint8Array([0xa5]), { encrypted: shouldEncrypt(ACTIVITY_FETCH_1.name) });
+    append(sent1.ok ? 'sent ACTIVITY_FETCH_1' : `send1 failed: ${sent1.error.message}`);
+    await new Promise((resolve) => { setTimeout(resolve, 1000); });
+    const sent2 = await session.send(ACTIVITY_FETCH_2, new Uint8Array([0xa5]), { encrypted: shouldEncrypt(ACTIVITY_FETCH_2.name) });
+    append(sent2.ok ? 'sent ACTIVITY_FETCH_2' : `send2 failed: ${sent2.error.message}`);
+    append('collecting 12s (inbound frames logged above)...');
+    await new Promise((resolve) => { setTimeout(resolve, 12000); });
+    append('--- full fetch done ---');
+  }
+
   async function disconnect(): Promise<void> {
     if (session) await session.stop();
     if (transport) await transport.disconnect();
@@ -190,6 +208,14 @@ export default function ProbePage() {
           className="rounded border border-line px-2 py-1 text-xs font-semibold"
         >
           Run discovery
+        </button>
+        <button
+          type="button"
+          onClick={() => { void runFullFetch(); }}
+          data-testid="probe-full-fetch"
+          className="rounded border border-line px-2 py-1 text-xs font-semibold"
+        >
+          Run full fetch
         </button>
       </div>
       <div className="flex gap-2 flex-wrap">

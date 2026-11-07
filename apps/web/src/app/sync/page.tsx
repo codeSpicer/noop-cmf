@@ -8,7 +8,7 @@ import {
   RecoveryPercentSchema,
   StrainScoreSchema,
 } from '@noop-cmf/types';
-import { clearDatabase, getDatabase } from '@/db/database';
+import { getDatabase } from '@/db/database';
 import { createDemoProvider } from '@/lib/demo-provider';
 import { errorMessage } from '@/lib/errors';
 import { importAll } from '@/lib/import';
@@ -51,7 +51,7 @@ export default function SyncPage() {
         return;
       }
       const db = getDatabase();
-      await clearDatabase(db);
+      // Merge with existing data (do not wipe) so imports accumulate.
       const range = { start: EpochMsSchema.parse(0), end: EpochMsSchema.parse(Date.now()) };
       const counts = await importAll(provider, range, db);
       setStatus(
@@ -102,13 +102,16 @@ export default function SyncPage() {
       }
       setStatus('Syncing from watch…');
       const db = getDatabase();
-      await clearDatabase(db);
+      // Merge with existing data (do not wipe) so repeated syncs accumulate.
       const end = EpochMsSchema.parse(Date.now());
       const start = EpochMsSchema.parse(end - 30 * 86_400_000);
       const counts = await importAll(provider, { start, end }, db);
       await provider.disconnect();
+      if (provider.lastRawWorkoutFrames.length > 0) {
+        console.log('WORKOUT_SUMMARY frames:', provider.lastRawWorkoutFrames.map((f) => Array.from(f).map((b) => b.toString(16).padStart(2, '0')).join(' ')));
+      }
       setStatus(
-        `BLE sync: ${String(counts.hr)} HR, ${String(counts.stress)} stress, ${String(counts.spo2)} spo2, ${String(counts.sleep)} sleep, ${String(counts.steps)} steps. Debug: ${provider.lastFetchDebug}`,
+        `BLE sync: ${String(counts.hr)} HR, ${String(counts.stress)} stress, ${String(counts.spo2)} spo2, ${String(counts.sleep)} sleep, ${String(counts.steps)} steps.`,
       );
     } catch (err) {
       setStatus(`BLE sync failed: ${errorMessage(err, 'unknown error')}`);

@@ -71,6 +71,7 @@ export class CmfBleProvider implements WatchDataProvider {
   private fetched = false;
   private fetchPromise: Promise<void> | undefined;
   public lastFetchDebug = '';
+  public lastRawWorkoutFrames: Uint8Array[] = [];
   private cachedHr: HrSample[] = [];
   private cachedStress: StressSample[] = [];
   private cachedSpo2: Spo2Sample[] = [];
@@ -221,6 +222,11 @@ export class CmfBleProvider implements WatchDataProvider {
             }
             break;
           }
+          case 'WORKOUT_SUMMARY':
+          case 'WORKOUT_SUMMARY_V3': {
+            this.lastRawWorkoutFrames.push(payload.slice());
+            break;
+          }
           default:
             break;
         }
@@ -248,7 +254,11 @@ export class CmfBleProvider implements WatchDataProvider {
       const counts = Object.entries(inboundCounts)
         .map(([k, v]) => `${k}:${String(v)}`)
         .join(', ');
-      this.lastFetchDebug = `${debug.join(' | ')} || decoded: ${counts} || hr=${String(this.cachedHr.length)} stress=${String(this.cachedStress.length)} spo2=${String(this.cachedSpo2.length)} sleep=${String(this.cachedSleep.length)} steps=${String(this.cachedSteps.length)}`;
+      const stepVals = this.cachedSteps.map((s) => s.steps);
+      const stepMin = stepVals.length > 0 ? Math.min(...stepVals) : 0;
+      const stepMax = stepVals.length > 0 ? Math.max(...stepVals) : 0;
+      const stepSum = stepVals.reduce((a, b) => a + b, 0);
+      this.lastFetchDebug = `${debug.join(' | ')} || decoded: ${counts} || hr=${String(this.cachedHr.length)} stress=${String(this.cachedStress.length)} spo2=${String(this.cachedSpo2.length)} sleep=${String(this.cachedSleep.length)} steps=${String(this.cachedSteps.length)} (min=${String(stepMin)} max=${String(stepMax)} sum=${String(stepSum)})`;
       this.fetched = true;
     };
     const promise = run().finally(() => {

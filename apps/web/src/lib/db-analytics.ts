@@ -85,11 +85,22 @@ export async function loadOverview(
   const breakdown = computeDayStrain(dayHr, BASELINE_RHR, BASELINE_HR_MAX);
   const summary = analyzeSleep(daySleep);
   const overnight = computeOvernightMetrics(dayHr, stressRows, daySleep, BASELINE_RHR);
+  const history: { ehrv: number; restingHeartRate: number }[] = [];
+  for (let i = 1; i <= 30; i += 1) {
+    const dEnd = range.end - i * DAY_MS;
+    const dStart = dEnd - DAY_MS;
+    const dHr = hrRows.filter((h) => h.timestamp >= dStart && h.timestamp < dEnd);
+    if (dHr.length === 0) continue;
+    const dSleep = sleepRows.filter((s) => s.start < dEnd && s.end > dStart);
+    const dStress = stressRows.filter((s) => s.timestamp >= dStart && s.timestamp < dEnd);
+    const dOvernight = computeOvernightMetrics(dHr, dStress, dSleep, BASELINE_RHR);
+    history.push({ ehrv: dOvernight.ehrv, restingHeartRate: dOvernight.restingHeartRate });
+  }
   const recovery = computeRecovery({
     ehrvToday: overnight.ehrv,
     rhrToday: overnight.restingHeartRate,
     sleepPerformance: summary.sleepPerformance || 85,
-    history: [],
+    history,
   });
   const weekStart = range.end - 7 * DAY_MS;
   const weekHr = hrRows.filter((s) => s.timestamp >= weekStart && s.timestamp < range.end);
@@ -139,11 +150,27 @@ export async function loadRecovery(
 
   const overnight = computeOvernightMetrics(dayHr, stressRows, daySleep, BASELINE_RHR);
   const summary = analyzeSleep(daySleep);
+  // Build rolling history from prior days for a meaningful recovery score.
+  const history: { ehrv: number; restingHeartRate: number }[] = [];
+  for (let i = 1; i <= 30; i += 1) {
+    const dEnd = range.end - i * DAY_MS;
+    const dStart = dEnd - DAY_MS;
+    const dHr = hrRows.filter((h) => h.timestamp >= dStart && h.timestamp < dEnd);
+    if (dHr.length === 0) continue;
+    const dSleep = sleepRows.filter((s) => s.start < dEnd && s.end > dStart);
+    const dStress = stressRows.filter((s) => s.timestamp >= dStart && s.timestamp < dEnd);
+    const dOvernight = computeOvernightMetrics(dHr, dStress, dSleep, BASELINE_RHR);
+    analyzeSleep(dSleep);
+    history.push({
+      ehrv: dOvernight.ehrv,
+      restingHeartRate: dOvernight.restingHeartRate,
+    });
+  }
   const recovery = computeRecovery({
     ehrvToday: overnight.ehrv,
     rhrToday: overnight.restingHeartRate,
     sleepPerformance: summary.sleepPerformance || 85,
-    history: [],
+    history,
   });
   const weekStart = range.end - 7 * DAY_MS;
   const weekHr = hrRows.filter((s) => s.timestamp >= weekStart && s.timestamp < range.end);

@@ -38,7 +38,9 @@ export async function loadHealthMetrics(
   const stress = dayStress.length > 0 ? dayStress.reduce((a, s) => a + s.stress, 0) / dayStress.length : 0;
   const spo2 = daySpo2.length > 0 ? daySpo2.reduce((a, s) => a + s.spo2, 0) / daySpo2.length : 0;
   const sleepMinutes = daySleep.reduce((a, s) => a + (s.end - s.start) / 60000, 0);
-  const steps = daySteps.reduce((a, s) => a + s.steps, 0);
+  // Steps are reported as a cumulative daily counter per record; take the
+  // max within the day rather than summing (which would over-count).
+  const steps = daySteps.length > 0 ? Math.max(...daySteps.map((s) => s.steps)) : 0;
 
   return {
     restingHeartRate: rhr,

@@ -75,6 +75,9 @@ export default function RecoveryPage() {
       <header>
         <p className="text-sm text-muted">Readiness</p>
         <h1 className="text-2xl font-semibold text-foreground">Recovery</h1>
+        <p className="text-xs text-muted">
+          Recovery (1-99) = overnight HR + stress + sleep vs your 30-day baseline. Readiness decays after workouts and counts down to &quot;ready to go hard&quot;. Baseline bands show your normal RHR/eHRV range (mean ± 1 std dev).
+        </p>
       </header>
       <div className="rounded-2xl border border-line bg-card p-6">
         <p data-testid="recovery-value" className="text-3xl font-semibold text-recovery">
@@ -90,7 +93,7 @@ export default function RecoveryPage() {
         </div>
       </div>
       <ReadinessCard result={view.readiness} />
-      {rhrTrend.length > 0 ? (
+      {rhrTrend.length >= 2 ? (
         <ErrorBoundary>
           <div className="rounded-2xl border border-line bg-card p-4">
             <BaselineBandChart
@@ -103,7 +106,7 @@ export default function RecoveryPage() {
           </div>
         </ErrorBoundary>
       ) : null}
-      {ehrvTrend.length > 0 ? (
+      {ehrvTrend.length >= 2 ? (
         <ErrorBoundary>
           <div className="rounded-2xl border border-line bg-card p-4">
             <BaselineBandChart

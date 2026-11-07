@@ -49,6 +49,9 @@ export default function SleepPage() {
       <header>
         <p className="text-sm text-muted">Last night</p>
         <h1 className="text-2xl font-semibold text-foreground">Sleep</h1>
+        <p className="text-xs text-muted">
+          Hypnogram: light blue = light sleep, dark blue = deep sleep, purple = REM, gray = awake. Sleep need tonight = 7.5h baseline + extra for today&apos;s strain and sleep debt. Consistency = how regular your bed/wake times are (0-100).
+        </p>
       </header>
       <ErrorBoundary>
         <div className="rounded-2xl border border-line bg-card p-6">

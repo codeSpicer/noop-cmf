@@ -72,6 +72,9 @@ export default function StrainPage() {
       <header>
         <p className="text-sm text-muted">Daily load</p>
         <h1 className="text-2xl font-semibold text-foreground">Strain</h1>
+        <p className="text-xs text-muted">
+          Strain (0-21) = daily exertion from heart rate zones. TRIMP = total cardiovascular load. Zone bars show time in each HR zone (1=easy … 5=max). Intensity minutes = moderate (zone 2+) and vigorous (zone 4+) minutes.
+        </p>
       </header>
       <ErrorBoundary>
         <div className="rounded-2xl border border-line bg-card p-6">

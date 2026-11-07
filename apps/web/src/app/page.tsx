@@ -68,6 +68,9 @@ export default function OverviewPage() {
       <header>
         <p className="text-sm text-muted">Today</p>
         <h1 className="text-2xl font-semibold text-foreground">Overview</h1>
+        <p className="text-xs text-muted">
+          Recovery = how rested you are (1-99). Strain = today&apos;s exertion (0-21). Sleep = last night&apos;s sleep performance. Energy combines all three.
+        </p>
       </header>
       <ErrorBoundary>
         <div className="rounded-2xl border border-line bg-card p-6">
