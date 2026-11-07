@@ -13,19 +13,26 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0B0E14',
+  themeColor: '#0E0D0B',
   width: 'device-width',
   initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2 focus:text-foreground"
+        >
+          Skip to content
+        </a>
         <Nav />
         <ServiceWorkerRegistrar />
         <InstallPrompt />
-        <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
+        <main id="main" className="mx-auto max-w-5xl px-4 py-6 sm:px-6">{children}</main>
       </body>
     </html>
   );

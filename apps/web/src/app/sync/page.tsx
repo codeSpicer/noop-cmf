@@ -166,7 +166,7 @@ export default function SyncPage() {
         onClick={() => {
           void pushRecovery();
         }}
-        className="rounded-full bg-recovery px-5 py-2 text-sm font-semibold text-[#04121f]"
+        className="rounded-full bg-recovery px-5 py-2 text-sm font-semibold text-[#0e0d0b] hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-recovery"
         data-testid="push-recovery"
       >
         Push Recovery to Watch
@@ -176,7 +176,7 @@ export default function SyncPage() {
         onClick={() => {
           void runBleSync();
         }}
-        className="rounded-full bg-strain px-5 py-2 text-sm font-semibold text-[#04121f]"
+        className="rounded-full bg-strain px-5 py-2 text-sm font-semibold text-[#0e0d0b] hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strain"
         data-testid="ble-sync"
       >
         Connect &amp; sync (watch)

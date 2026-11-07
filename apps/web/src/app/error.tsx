@@ -20,7 +20,7 @@ export default function ErrorPage({
       <button
         type="button"
         onClick={reset}
-        className="mt-6 rounded-full bg-strain px-5 py-2 text-sm font-semibold text-[#04121f]"
+        className="mt-6 rounded-full bg-strain px-5 py-2 text-sm font-semibold text-[#0e0d0b]"
       >
         Try again
       </button>

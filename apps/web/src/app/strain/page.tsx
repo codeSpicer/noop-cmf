@@ -14,11 +14,11 @@ import type { WorkoutTrimp } from '@/lib/workout-trimp';
 import { errorMessage } from '@/lib/errors';
 
 const ZONE_COLORS: Record<HrZone, string> = {
-  1: '#8b98a9',
-  2: '#0096ff',
-  3: '#00f19f',
-  4: '#ffbe0b',
-  5: '#ff0055',
+  1: 'var(--color-muted)',
+  2: 'var(--color-strain)',
+  3: 'var(--color-recovery)',
+  4: 'var(--color-warn)',
+  5: 'var(--color-danger)',
 };
 
 export default function StrainPage() {
@@ -63,7 +63,7 @@ export default function StrainPage() {
     return <p aria-busy="true">Loading strain…</p>;
   }
   if (!view) {
-    return <p>No data yet — sync a watch.</p>;
+    return <p>No data yet — sync a watch from the Sync page.</p>;
   }
   const zones = view.zones;
   const total = Object.values(zones).reduce((sum, minutes) => sum + minutes, 0);
@@ -72,8 +72,8 @@ export default function StrainPage() {
       <header>
         <p className="text-sm text-muted">Daily load</p>
         <h1 className="text-2xl font-semibold text-foreground">Strain</h1>
-        <p className="text-xs text-muted">
-          Strain (0-21) = daily exertion from heart rate zones. TRIMP = total cardiovascular load. Zone bars show time in each HR zone (1=easy … 5=max). Intensity minutes = moderate (zone 2+) and vigorous (zone 4+) minutes.
+        <p className="text-sm text-muted max-w-prose">
+           Strain (0-21) = daily exertion from heart rate zones. TRIMP = total cardiovascular load. Zone bars show time in each HR zone (1=easy … 5=max). Intensity minutes = moderate (zone 2+) and vigorous (zone 4+) minutes.
         </p>
       </header>
       <ErrorBoundary>
@@ -110,6 +110,14 @@ export default function StrainPage() {
             <span>Zone 1</span>
             <span>Zone 5</span>
           </div>
+          <div className="mt-2 flex gap-2 text-xs text-muted" aria-label="HR zone legend">
+            {Object.entries(ZONE_COLORS).map(([zone, color]) => (
+              <span key={zone} className="inline-flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                {zone}
+              </span>
+            ))}
+          </div>
           {workouts.length > 0 ? (
             <ul className="mt-4 space-y-1 text-sm text-muted" data-testid="workout-trimp-list">
               {workouts.map((w) => (
@@ -125,7 +133,7 @@ export default function StrainPage() {
         <div className="rounded-2xl border border-line bg-card p-4">
           <Sparkline
             values={trend.length > 0 ? trend : [view.strain]}
-            color="#0096FF"
+            color="var(--color-strain)"
             label="7-day strain trend"
             testId="strain-spark"
           />

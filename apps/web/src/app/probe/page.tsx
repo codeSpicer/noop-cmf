@@ -166,13 +166,13 @@ export default function ProbePage() {
         {status}
       </p>
       <div className="flex gap-2">
-        <button type="button" onClick={() => { void connect(); }} data-testid="probe-connect">
+        <button type="button" onClick={() => { void connect(); }} data-testid="probe-connect" className="min-h-11 px-3 py-2">
           Connect
         </button>
-        <button type="button" onClick={() => { void pair(); }} data-testid="probe-pair">
+        <button type="button" onClick={() => { void pair(); }} data-testid="probe-pair" className="min-h-11 px-3 py-2">
           Pair
         </button>
-        <button type="button" onClick={() => { void disconnect(); }} data-testid="probe-disconnect">
+        <button type="button" onClick={() => { void disconnect(); }} data-testid="probe-disconnect" className="min-h-11 px-3 py-2">
           Disconnect
         </button>
       </div>
@@ -181,7 +181,7 @@ export default function ProbePage() {
           value={selected}
           onChange={(e) => { setSelected(e.target.value); }}
           data-testid="probe-command"
-          className="w-full rounded border border-line bg-void p-2 text-sm"
+          className="w-full rounded border border-line bg-void p-2 text-base"
         >
           {ALL_COMMANDS.map((c: CmfCommandDef) => (
             <option key={c.name} value={c.name}>
@@ -194,7 +194,7 @@ export default function ProbePage() {
           onChange={(e) => { setPayloadHex(e.target.value); }}
           placeholder="hex payload"
           data-testid="probe-payload"
-          className="w-full rounded border border-line bg-void p-2 text-sm"
+          className="w-full rounded border border-line bg-void p-2 text-base"
         />
         <button type="button" onClick={() => { void send(); }} data-testid="probe-send">
           Send
@@ -205,7 +205,7 @@ export default function ProbePage() {
           type="button"
           onClick={() => { void runDiscovery(); }}
           data-testid="probe-discover"
-          className="rounded border border-line px-2 py-1 text-xs font-semibold"
+           className="rounded border border-line px-2 py-1 text-xs font-semibold min-h-11"
         >
           Run discovery
         </button>
@@ -213,7 +213,7 @@ export default function ProbePage() {
           type="button"
           onClick={() => { void runFullFetch(); }}
           data-testid="probe-full-fetch"
-          className="rounded border border-line px-2 py-1 text-xs font-semibold"
+           className="rounded border border-line px-2 py-1 text-xs font-semibold min-h-11"
         >
           Run full fetch
         </button>
@@ -231,7 +231,7 @@ export default function ProbePage() {
               });
             }}
             data-testid={`probe-quick-${name}`}
-            className="rounded border border-line px-2 py-1 text-xs"
+            className="rounded border border-line px-2 py-1 text-xs min-h-11"
           >
             {name}
           </button>

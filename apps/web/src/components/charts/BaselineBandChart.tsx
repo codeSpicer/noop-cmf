@@ -53,8 +53,8 @@ export function BaselineBandChart({
       aria-label={label}
       data-testid={testId}
     >
-      <rect x={0} y={bandTop} width={width} height={Math.max(0, bandBottom - bandTop)} fill="#0096ff22" />
-      {path && <path d={path} fill="none" stroke="#0096FF" strokeWidth={2} />}
+      <rect x={0} y={bandTop} width={width} height={Math.max(0, bandBottom - bandTop)} fill="var(--color-strain)" fillOpacity={0.12} />
+      {path && <path d={path} fill="none" stroke="var(--color-strain)" strokeWidth={2} />}
     </svg>
   );
 }

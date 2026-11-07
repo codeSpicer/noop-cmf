@@ -1,18 +1,18 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-void: #0b0e14;
-  --color-card: #121721;
-  --color-surface: #171e2b;
-  --color-line: #1e2735;
-  --color-foreground: #e8edf3;
-  --color-muted: #8b98a9;
-  --color-faint: #7a8796;
-  --color-recovery: #00f19f;
-  --color-strain: #0096ff;
-  --color-sleep: #7b61ff;
-  --color-warn: #ffbe0b;
-  --color-danger: #ff0055;
+  --color-void: #0e0d0b;
+  --color-card: #161512;
+  --color-surface: #1d1b17;
+  --color-line: #2a2721;
+  --color-foreground: #f2ede3;
+  --color-muted: #9c9689;
+  --color-faint: #6e6960;
+  --color-recovery: #7fb89a;
+  --color-strain: #e08a3c;
+  --color-sleep: #9a8fd6;
+  --color-warn: #d9a441;
+  --color-danger: #d45a52;
 
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
@@ -26,14 +26,26 @@ body {
   background-color: var(--color-void);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   min-height: 100dvh;
 }
 
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+}
+
 ::selection {
-  background-color: rgb(0 150 255 / 0.3);
+  background-color: rgb(224 138 60 / 0.3);
 }
 
 :focus-visible {

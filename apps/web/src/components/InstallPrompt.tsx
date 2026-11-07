@@ -22,7 +22,7 @@ export function InstallPrompt() {
   if (!deferred || hidden) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 rounded-lg border border-line bg-card p-3 shadow-lg">
+    <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] rounded-lg border border-line bg-card p-3 shadow-lg">
       <button
         type="button"
         onClick={() => {
@@ -36,9 +36,9 @@ export function InstallPrompt() {
       <button
         type="button"
         onClick={() => { setHidden(true); }}
-        className="ml-2 text-xs text-muted"
+        className="ml-2 text-xs text-muted min-h-11 inline-flex items-center"
       >
-        dismiss
+        Dismiss
       </button>
     </div>
   );

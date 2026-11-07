@@ -68,15 +68,15 @@ export default function RecoveryPage() {
     return <p aria-busy="true">Loading recovery…</p>;
   }
   if (!view) {
-    return <p>No data yet — sync a watch.</p>;
+    return <p>No data yet — sync a watch from the Sync page.</p>;
   }
   return (
     <section aria-label="Recovery" className="space-y-4">
       <header>
         <p className="text-sm text-muted">Readiness</p>
         <h1 className="text-2xl font-semibold text-foreground">Recovery</h1>
-        <p className="text-xs text-muted">
-          Recovery (1-99) = overnight HR + stress + sleep vs your 30-day baseline. Readiness decays after workouts and counts down to &quot;ready to go hard&quot;. Baseline bands show your normal RHR/eHRV range (mean ± 1 std dev).
+        <p className="text-sm text-muted max-w-prose">
+           Recovery (1-99) = overnight HR + stress + sleep vs your 30-day baseline. Readiness decays after workouts and counts down to &quot;ready to go hard&quot;. Baseline bands show your normal RHR/eHRV range (mean ± 1 std dev).
         </p>
       </header>
       <div className="rounded-2xl border border-line bg-card p-6">

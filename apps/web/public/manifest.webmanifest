@@ -4,8 +4,8 @@
   "description": "Local-first Whoop-style analytics for CMF Watch Pro 2.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0B0E14",
-  "theme_color": "#0B0E14",
+  "background_color": "#0E0D0B",
+  "theme_color": "#0E0D0B",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ]

@@ -8,12 +8,13 @@ export interface InfoTipProps {
 /** Small inline info icon with a native tooltip. */
 export function InfoTip({ text, label = 'info' }: InfoTipProps) {
   return (
-    <span
+    <button
+      type="button"
       title={text}
-      aria-label={label}
-      className="ml-1 inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-line text-[10px] text-muted"
+      aria-label={`${label}: ${text}`}
+      className="ml-1 inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-line text-[10px] text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strain"
     >
       i
-    </span>
+    </button>
   );
 }

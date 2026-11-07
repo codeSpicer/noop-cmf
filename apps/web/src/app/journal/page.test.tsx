@@ -11,7 +11,7 @@ describe('JournalPage', () => {
     await clearDatabase(db);
     window.history.replaceState({}, '', '/journal');
     render(<JournalPage />);
-    await user.click(screen.getByLabelText('alcohol'));
+    await user.click(screen.getByLabelText('Alcohol'));
     await user.click(screen.getByTestId('journal-submit'));
     await waitFor(() => {
       expect(screen.getByTestId('journal-saved')).toBeInTheDocument();

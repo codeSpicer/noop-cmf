@@ -16,10 +16,10 @@ interface HypnogramProps {
 
 const STAGE_ORDER: Record<SleepStage, number> = { awake: 0, rem: 1, light: 2, deep: 3 };
 const STAGE_COLORS: Record<SleepStage, string> = {
-  awake: '#8b98a9',
-  rem: '#7b61ff',
-  light: '#0096ff',
-  deep: '#1c2f6e',
+  awake: 'var(--color-muted)',
+  rem: 'var(--color-sleep)',
+  light: '#b8b0e0',
+  deep: '#3d3566',
 };
 
 /** Map segments into positioned SVG rects (exported for unit tests). */

@@ -17,9 +17,9 @@ import { computeEnergyScore } from '@noop-cmf/physio-engine';
 import { errorMessage } from '@/lib/errors';
 
 const RECOVERY_TIER_COLORS: Record<RecoveryColorTier, string> = {
-  green: '#00F19F',
-  yellow: '#FFBE0B',
-  red: '#FF0055',
+  green: 'var(--color-recovery)',
+  yellow: 'var(--color-warn)',
+  red: 'var(--color-danger)',
 };
 
 export default function OverviewPage() {
@@ -61,63 +61,72 @@ export default function OverviewPage() {
     return <p aria-busy="true">Loading overview…</p>;
   }
   if (!view) {
-    return <p>No data yet — sync a watch.</p>;
+    return <p>No data yet — sync a watch from the Sync page.</p>;
   }
   return (
-    <section aria-label="Overview" className="space-y-4">
+    <section aria-label="Overview" className="space-y-6">
       <header>
         <p className="text-sm text-muted">Today</p>
         <h1 className="text-2xl font-semibold text-foreground">Overview</h1>
-        <p className="text-xs text-muted">
-          Recovery = how rested you are (1-99). Strain = today&apos;s exertion (0-21). Sleep = last night&apos;s sleep performance. Energy combines all three.
+        <p className="text-sm text-muted max-w-prose">
+           Recovery = how rested you are (1-99). Strain = today&apos;s exertion (0-21). Sleep = last night&apos;s sleep performance. Energy combines all three.
         </p>
       </header>
-      <ErrorBoundary>
-        <div className="rounded-2xl border border-line bg-card p-6">
-          <div className="flex flex-wrap items-center justify-center gap-6">
-            <GaugeRing
-              value={view.recovery}
-              max={99}
-              color={RECOVERY_TIER_COLORS[view.tier]}
-              label={`Recovery ${view.tier}`}
-              suffix="%"
-              testId="recovery-ring"
-            />
-            <GaugeRing
-              value={view.strain}
-              max={21}
-              color="#0096FF"
-              label="Strain"
-              testId="strain-ring"
-            />
-            <GaugeRing
-              value={view.sleepPerformance}
-              max={100}
-              color="#7B61FF"
-              label="Sleep"
-              suffix="%"
-              testId="sleep-ring"
-            />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ErrorBoundary>
+          <div className="lg:col-span-2 rounded-2xl border border-line bg-card p-6">
+            <div className="flex flex-wrap items-center gap-6">
+              <GaugeRing
+                value={view.recovery}
+                max={99}
+                size={200}
+                color={RECOVERY_TIER_COLORS[view.tier]}
+                label={`Recovery ${view.tier}`}
+                suffix="%"
+                testId="recovery-ring"
+              />
+              <div className="flex flex-wrap items-center gap-6">
+                <GaugeRing
+                  value={view.strain}
+                  max={21}
+                  size={128}
+                  color="var(--color-strain)"
+                  label="Strain"
+                  testId="strain-ring"
+                />
+                <GaugeRing
+                  value={view.sleepPerformance}
+                  max={100}
+                  size={128}
+                  color="var(--color-sleep)"
+                  label="Sleep"
+                  suffix="%"
+                  testId="sleep-ring"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+              <p data-testid="strain-target" className="text-sm text-muted">
+                Optimal strain target: <span className="text-foreground">{view.strainTarget}</span>
+              </p>
+              <p data-testid="energy-score" className="text-sm text-muted">
+                Energy: <span className="text-foreground">{computeEnergyScore(view.recovery, 0, view.strain)}</span>/100
+              </p>
+              <ReadinessChip result={view.readiness} />
+            </div>
           </div>
-          <p data-testid="strain-target" className="mt-6 text-center text-sm text-muted">
-            Optimal strain target: <span className="text-foreground">{view.strainTarget}</span>
-          </p>
-          <p data-testid="energy-score" className="mt-2 text-center text-sm text-muted">
-            Energy: <span className="text-foreground">{computeEnergyScore(view.recovery, 0, view.strain)}</span>/100
-          </p>
-          <div className="mt-4 flex justify-center">
-            <ReadinessChip result={view.readiness} />
+        </ErrorBoundary>
+        <ErrorBoundary>
+          <div className="rounded-2xl border border-line bg-card p-6">
+            <HealthMonitorCard metrics={health} />
           </div>
-        </div>
-      </ErrorBoundary>
-      <ErrorBoundary>
-        <HealthMonitorCard metrics={health} />
-      </ErrorBoundary>
+        </ErrorBoundary>
+      </div>
       <ErrorBoundary>
         <div className="rounded-2xl border border-line bg-card p-4">
           <Sparkline
             values={trend.length > 0 ? trend : [view.strain]}
-            color="#0096FF"
+            color="var(--color-strain)"
             label="7-day strain trend"
             testId="strain-spark"
           />

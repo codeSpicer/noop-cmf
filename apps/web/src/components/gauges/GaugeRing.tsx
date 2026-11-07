@@ -62,7 +62,7 @@ export function GaugeRing({
       aria-label={`${label}: ${String(value)} of ${String(max)}`}
       data-testid={testId}
     >
-      <path d={track} fill="none" stroke="#1e2735" strokeWidth={stroke} strokeLinecap="round" />
+      <path d={track} fill="none" stroke="var(--color-line)" strokeWidth={stroke} strokeLinecap="round" />
       <path
         d={gaugeArcPath(value, max, size, stroke)}
         fill="none"
@@ -76,7 +76,7 @@ export function GaugeRing({
         y={center}
         textAnchor="middle"
         dominantBaseline="central"
-        fill="#e8edf3"
+        fill="var(--color-foreground)"
         fontSize={valueFontSize}
         fontWeight="600"
       >
@@ -87,7 +87,7 @@ export function GaugeRing({
         x={center}
         y={center + valueFontSize * 0.8}
         textAnchor="middle"
-        fill="#8b98a9"
+        fill="var(--color-muted)"
         fontSize={labelFontSize}
         letterSpacing="0.02em"
       >

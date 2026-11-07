@@ -6,6 +6,14 @@ import { getDatabase } from '@/db/database';
 
 const HABITS = ['alcohol', 'caffeine', 'late-meal', 'screens', 'exercise'] as const;
 
+const HABIT_LABELS: Record<(typeof HABITS)[number], string> = {
+  alcohol: 'Alcohol',
+  caffeine: 'Caffeine',
+  'late-meal': 'Late meal',
+  screens: 'Screen time',
+  exercise: 'Exercise',
+};
+
 /** Journal route: morning checklist persisted to IndexedDB + impact bars. */
 export default function JournalPage() {
   const [checks, setChecks] = useState<Record<string, boolean>>({});
@@ -49,7 +57,7 @@ export default function JournalPage() {
             {HABITS.map((habit) => (
               <label
                 key={habit}
-                className="inline-flex items-center gap-2 text-sm text-foreground"
+                className="inline-flex items-center gap-2 text-sm text-foreground py-2 min-h-11"
               >
                 <input
                   type="checkbox"
@@ -57,17 +65,17 @@ export default function JournalPage() {
                   onChange={() => {
                     toggle(habit);
                   }}
-                  aria-label={habit}
+                  aria-label={HABIT_LABELS[habit]}
                   className="h-4 w-4 accent-recovery"
                 />
-                {habit}
+                {HABIT_LABELS[habit]}
               </label>
             ))}
           </div>
         </fieldset>
         <button
           type="submit"
-          className="mt-6 rounded-full bg-recovery px-5 py-2 text-sm font-semibold text-[#04121f]"
+          className="mt-6 rounded-full bg-recovery px-5 py-2 text-sm font-semibold text-[#0e0d0b]"
           data-testid="journal-submit"
         >
           Save entry
@@ -85,7 +93,7 @@ export default function JournalPage() {
             key={impact.habit}
             className="flex items-center justify-between border-b border-line py-2 text-sm text-muted last:border-0"
           >
-            <span>{impact.habit}</span>
+            <span>{HABIT_LABELS[impact.habit as (typeof HABITS)[number]]}</span>
             <span className="text-foreground">
               {impact.recoveryDelta === null
                 ? 'insufficient data'

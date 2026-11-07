@@ -42,15 +42,15 @@ export default function SleepPage() {
     return <p aria-busy="true">Loading sleep…</p>;
   }
   if (!view) {
-    return <p>No data yet — sync a watch.</p>;
+    return <p>No data yet — sync a watch from the Sync page.</p>;
   }
   return (
     <section aria-label="Sleep" className="space-y-4">
       <header>
         <p className="text-sm text-muted">Last night</p>
         <h1 className="text-2xl font-semibold text-foreground">Sleep</h1>
-        <p className="text-xs text-muted">
-          Hypnogram: light blue = light sleep, dark blue = deep sleep, purple = REM, gray = awake. Sleep need tonight = 7.5h baseline + extra for today&apos;s strain and sleep debt. Consistency = how regular your bed/wake times are (0-100).
+        <p className="text-sm text-muted max-w-prose">
+           Hypnogram: lighter purple = light sleep, darker purple = deep sleep, purple = REM, gray = awake. Sleep need tonight = 7.5h baseline + extra for today&apos;s strain and sleep debt. Consistency = how regular your bed/wake times are (0-100).
         </p>
       </header>
       <ErrorBoundary>

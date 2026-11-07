@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('morning journal submission recalculates impact bars', async ({ page }) => {
   await page.goto('/journal');
-  await page.getByLabel('alcohol').check();
+    await page.getByLabel('Alcohol').check();
   await page.getByTestId('journal-submit').click();
   await expect(page.getByTestId('journal-saved')).toContainText('Entry saved.');
   await expect(page.getByTestId('impact-bars')).toBeVisible();
