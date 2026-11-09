@@ -25,14 +25,17 @@ export interface ReadinessDataInput {
   readonly sleepSegments: readonly SleepSegment[];
   readonly workouts: readonly Workout[];
   readonly now: EpochMs;
+  readonly recoveryScore?: number;
 }
 
 /** Pure derivation from in-memory sample arrays (no IndexedDB). */
 export function computeReadinessFromData(input: ReadinessDataInput): ReadinessResult {
-  const { hrSamples, sleepSegments, workouts, now } = input;
+  const { hrSamples, sleepSegments, workouts, now, recoveryScore: override } = input;
 
   let recoveryScore = 50;
-  if (hrSamples.length > 0) {
+  if (override !== undefined) {
+    recoveryScore = override;
+  } else if (hrSamples.length > 0) {
     const overnight = computeOvernightMetrics(hrSamples, [], sleepSegments, BASELINE_RHR);
     const sleepSummary = sleepSegments.length > 0 ? analyzeSleep(sleepSegments) : null;
     const sleepPerformance = sleepSummary ? sleepSummary.sleepPerformance : 85;

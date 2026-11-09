@@ -109,6 +109,7 @@ export async function loadOverview(
     sleepSegments: daySleep,
     workouts: workoutRows.filter((w) => w.end >= weekStart && w.start < range.end),
     now: EpochMsSchema.parse(range.end),
+    recoveryScore: recovery,
   });
 
   return {
@@ -179,6 +180,7 @@ export async function loadRecovery(
     sleepSegments: daySleep,
     workouts: workoutRows.filter((w) => w.end >= weekStart && w.start < range.end),
     now: EpochMsSchema.parse(range.end),
+    recoveryScore: recovery,
   });
 
   return {

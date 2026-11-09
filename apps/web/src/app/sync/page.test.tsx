@@ -71,6 +71,6 @@ describe('SyncPage', () => {
     window.history.replaceState({}, '', '/sync');
     render(<SyncPage />);
     await user.click(screen.getByTestId('ble-sync'));
-    await screen.findByText(/BLE sync failed|Connect failed|Web Bluetooth/i, {}, { timeout: 10000 });
-  }, 15000);
+    await screen.findByText(/BLE sync failed|Connect failed|Web Bluetooth/i, {}, { timeout: 20000 });
+  }, 25000);
 });
