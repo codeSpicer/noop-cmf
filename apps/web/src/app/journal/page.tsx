@@ -87,20 +87,31 @@ export default function JournalPage() {
         </p>
       ) : null}
       <div className="rounded-2xl border border-line bg-card p-6" data-testid="impact-bars">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Habit impact</h2>
-        {impacts.map((impact) => (
-          <div
-            key={impact.habit}
-            className="flex items-center justify-between border-b border-line py-2 text-sm text-muted last:border-0"
-          >
-            <span>{HABIT_LABELS[impact.habit as (typeof HABITS)[number]]}</span>
-            <span className="text-foreground">
-              {impact.recoveryDelta === null
-                ? 'insufficient data'
-                : `${impact.recoveryDelta.toFixed(1)}%`}
-            </span>
-          </div>
-        ))}
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Habit impact (recovery delta)</h2>
+        {impacts.length === 0 ? (
+          <p className="text-xs text-muted">Save entries to see impact.</p>
+        ) : (
+          impacts.map((impact) => {
+            const delta = impact.recoveryDelta ?? 0;
+            const width = Math.min(100, Math.abs(delta) * 10);
+            const color = delta >= 0 ? 'bg-recovery' : 'bg-red-400';
+            return (
+              <div key={impact.habit} className="py-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted">{HABIT_LABELS[impact.habit as (typeof HABITS)[number]]}</span>
+                  <span className="text-foreground">
+                    {impact.recoveryDelta === null ? 'insufficient data' : `${impact.recoveryDelta.toFixed(1)}%`}
+                  </span>
+                </div>
+                {impact.recoveryDelta !== null ? (
+                  <div className="mt-1 h-2 w-full rounded-full bg-surface">
+                    <div className={`h-2 rounded-full ${color}`} style={{ width: `${String(width)}%` }} />
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
+        )}
       </div>
     </section>
   );

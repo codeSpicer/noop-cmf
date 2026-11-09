@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { Nav } from '@/components/Nav';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
+import { NotificationScheduler } from '@/components/NotificationScheduler';
 import { InstallPrompt } from '@/components/InstallPrompt';
 import './globals.css';
 
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         </a>
         <Nav />
         <ServiceWorkerRegistrar />
+        <NotificationScheduler />
         <InstallPrompt />
         <main id="main" className="mx-auto max-w-5xl px-4 py-6 sm:px-6">{children}</main>
       </body>

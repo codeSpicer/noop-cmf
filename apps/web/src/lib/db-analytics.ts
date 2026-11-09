@@ -236,3 +236,22 @@ export async function loadStrain(
     hrSamples: dayHr,
   };
 }
+/** Daily resting HR (10th percentile) for the last 28 days. */
+export async function loadRhrTrend(db: ReturnType<typeof getDatabase>): Promise<readonly number[]> {
+  const hrRows = await db.hrSamples.toArray();
+  if (hrRows.length === 0) return [];
+  const byDay = new Map<string, number[]>();
+  for (const h of hrRows) {
+    const day = new Date(h.timestamp).toISOString().slice(0, 10);
+    if (!byDay.has(day)) byDay.set(day, []);
+    const bd = byDay.get(day);
+    if (bd) bd.push(h.bpm);
+  }
+  const sorted = [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const last28 = sorted.slice(-28);
+  return last28.map(([, bpms]) => {
+    const sortedBpms = [...bpms].sort((a, b) => a - b);
+    const idx = Math.max(0, Math.floor(sortedBpms.length * 0.1));
+    return sortedBpms[idx] ?? sortedBpms[0] ?? 0;
+  });
+}

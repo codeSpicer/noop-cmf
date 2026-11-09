@@ -22,7 +22,11 @@
       "Shell(cd:*)",
       "Shell(awk:*)",
       "Shell(sed:*)",
-      "Shell(npx vitest run packages/cmf-ble/src/cmf-ble-provider.test.ts 2 >& 1)"
+      "Shell(npx vitest run packages/cmf-ble/src/cmf-ble-provider.test.ts 2 >& 1)",
+      "Shell(cd /Users/akshat/repos/noop-cmf && sed -i '' \"s/return \\`\\${d.getFullYear()}-W\\${String(weekNum).padStart(2, '0')}\\`;/return \\`\\${String(d.getFullYear())}-W\\${String(weekNum).padStart(2, '0')}\\`;/\" apps/web/src/lib/weekly-summary.ts && grep -n \"getFullYear\" apps/web/src/lib/weekly-summary.ts)",
+      "Shell(for:*)",
+      "Shell(do:*)",
+      "Shell(done:*)"
     ],
     "deny": [],
     "defaultMode": "default"

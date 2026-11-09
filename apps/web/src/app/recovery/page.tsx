@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { BaselineBandChart } from '@/components/charts/BaselineBandChart';
+import { Sparkline } from '@/components/charts/Sparkline';
 import { ReadinessCard } from '@/components/ReadinessCard';
 import { getDatabase } from '@/db/database';
-import { loadRecovery } from '@/lib/db-analytics';
+import { loadRecovery, loadRhrTrend } from '@/lib/db-analytics';
 import type { RecoveryView } from '@/lib/db-analytics';
 import { computeOvernightMetrics, percentile, sampleStdDev } from '@noop-cmf/physio-engine';
 import { errorMessage } from '@/lib/errors';
@@ -16,6 +17,7 @@ export default function RecoveryPage() {
   const [view, setView] = useState<RecoveryView | null>(null);
   const [rhrTrend, setRhrTrend] = useState<number[]>([]);
   const [ehrvTrend, setEhrvTrend] = useState<number[]>([]);
+  const [rhr28, setRhr28] = useState<number[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +29,8 @@ export default function RecoveryPage() {
         const data = await loadRecovery(db);
         if (cancelled) return;
         setView(data);
+        const rhrTrend28 = await loadRhrTrend(db);
+        setRhr28([...rhrTrend28]);
         // daily RHR + eHRV over last 7 days
         const [hrRows, stressRows, sleepRows] = await Promise.all([
           db.hrSamples.toArray(),
@@ -119,6 +123,14 @@ export default function RecoveryPage() {
           </div>
         </ErrorBoundary>
       ) : null}
+      <div className="rounded-2xl border border-line bg-card p-4">
+        <p className="mb-2 text-xs text-muted">Resting HR trend (28 days)</p>
+        {rhr28.length >= 4 ? (
+          <Sparkline values={rhr28} color="#22c55e" label="Resting HR trend" testId="rhr-trend" />
+        ) : (
+          <p className="text-xs text-muted">Need 4+ days of data for trend.</p>
+        )}
+      </div>
     </section>
   );
 }

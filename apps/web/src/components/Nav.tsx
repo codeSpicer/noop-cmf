@@ -8,6 +8,7 @@ const NAV: ReadonlyArray<{ href: string; label: string }> = [
   { href: '/', label: 'Overview' },
   { href: '/strain', label: 'Strain' },
   { href: '/recovery', label: 'Recovery' },
+  { href: '/weekly', label: 'Weekly' },
   { href: '/sleep', label: 'Sleep' },
   { href: '/journal', label: 'Journal' },
   { href: '/sync', label: 'Sync' },
