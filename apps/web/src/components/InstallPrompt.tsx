@@ -22,14 +22,14 @@ export function InstallPrompt() {
   if (!deferred || hidden) return null;
 
   return (
-    <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] rounded-lg border border-line bg-card p-3 shadow-lg">
+    <div className="fixed bottom-4 right-4 z-50 rounded-lg border border-line bg-card p-3 shadow-lg">
       <button
         type="button"
         onClick={() => {
           void deferred.prompt();
           setDeferred(null);
         }}
-        className="text-sm font-semibold text-foreground"
+        className="rounded-full bg-strain px-4 py-2 text-sm font-semibold text-[#0e0d0b] hover:opacity-90"
       >
         Install app
       </button>
