@@ -23,6 +23,12 @@ export interface StoredAuthKey {
   readonly key: string;
 }
 
+export interface StoredWorkoutRawFrame {
+  readonly id: string;
+  readonly data: string;
+  readonly capturedAt: number;
+}
+
 export class NoopCmfDatabase extends Dexie {
   hrSamples!: Table<HrSample, number>;
   stressSamples!: Table<StressSample, number>;
@@ -33,6 +39,7 @@ export class NoopCmfDatabase extends Dexie {
   journalEntries!: Table<JournalEntry, string>;
   cycles!: Table<StoredCycle, string>;
   authKeys!: Table<StoredAuthKey, string>;
+  workoutRawFrames!: Table<StoredWorkoutRawFrame, string>;
 
   constructor(name = 'noop-cmf') {
     super(name);
@@ -50,6 +57,9 @@ export class NoopCmfDatabase extends Dexie {
     });
     this.version(3).stores({
       authKeys: 'id',
+    });
+    this.version(4).stores({
+      workoutRawFrames: 'id',
     });
   }
 }
@@ -81,6 +91,8 @@ export async function clearDatabase(db: NoopCmfDatabase): Promise<void> {
       db.workouts,
       db.journalEntries,
       db.cycles,
+      db.authKeys,
+      db.workoutRawFrames,
     ],
     async () => {
       await Promise.all([
@@ -92,6 +104,8 @@ export async function clearDatabase(db: NoopCmfDatabase): Promise<void> {
         db.workouts.clear(),
         db.journalEntries.clear(),
         db.cycles.clear(),
+        db.authKeys.clear(),
+        db.workoutRawFrames.clear(),
       ]);
     },
   );

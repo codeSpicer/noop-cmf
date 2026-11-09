@@ -13,6 +13,7 @@ import { createDemoProvider } from '@/lib/demo-provider';
 import { errorMessage } from '@/lib/errors';
 import { importAll } from '@/lib/import';
 import { loadAuthKey, saveAuthKey } from '@/lib/ble-auth-store';
+import { exportAllData } from '@/lib/export';
 
 /** Sync route: demo persona selector, Gadgetbridge dropzone, mock BLE sync. */
 export default function SyncPage() {
@@ -106,10 +107,19 @@ export default function SyncPage() {
       const end = EpochMsSchema.parse(Date.now());
       const start = EpochMsSchema.parse(end - 30 * 86_400_000);
       const counts = await importAll(provider, { start, end }, db);
-      await provider.disconnect();
+      // Persist raw workout frames for later decoding.
       if (provider.lastRawWorkoutFrames.length > 0) {
+        const db = getDatabase();
+        await db.workoutRawFrames.bulkPut(
+          provider.lastRawWorkoutFrames.map((f, i) => ({
+            id: `frame-${String(Date.now())}-${String(i)}`,
+            data: Array.from(f).map((b) => b.toString(16).padStart(2, '0')).join(''),
+            capturedAt: Date.now(),
+          })),
+        );
         console.log('WORKOUT_SUMMARY frames:', provider.lastRawWorkoutFrames.map((f) => Array.from(f).map((b) => b.toString(16).padStart(2, '0')).join(' ')));
       }
+      await provider.disconnect();
       setStatus(
         `BLE sync: ${String(counts.hr)} HR, ${String(counts.stress)} stress, ${String(counts.spo2)} spo2, ${String(counts.sleep)} sleep, ${String(counts.steps)} steps.`,
       );
@@ -180,6 +190,16 @@ export default function SyncPage() {
         data-testid="ble-sync"
       >
         Connect &amp; sync (watch)
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void exportAllData();
+        }}
+        className="rounded-full border border-line bg-surface px-5 py-2 text-sm font-semibold text-foreground"
+        data-testid="export-data"
+      >
+        Export data (JSON)
       </button>
     </section>
   );
