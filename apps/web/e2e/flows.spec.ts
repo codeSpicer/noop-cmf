@@ -13,3 +13,12 @@ test('push recovery to watch', async ({ page }) => {
   await page.getByTestId('push-recovery').click();
   await expect(page.getByTestId('sync-status')).toContainText('Recovery pushed to watch.', { timeout: 30_000 });
 });
+
+test('offline page loads from cache @offline', async ({ page, context }) => {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page).toHaveURL(/localhost/);
+  await context.setOffline(false);
+});
