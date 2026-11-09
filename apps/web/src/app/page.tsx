@@ -13,6 +13,7 @@ import type { OverviewView } from '@/lib/db-analytics';
 import { loadHealthMetrics } from '@/lib/health-metrics';
 import type { HealthMetrics } from '@/lib/health-metrics';
 import { loadStrainTrend } from '@/lib/strain-trend';
+import { loadStressTrend } from '@/lib/stress-trend';
 import { computeEnergyScore } from '@noop-cmf/physio-engine';
 import { errorMessage } from '@/lib/errors';
 
@@ -26,6 +27,7 @@ export default function OverviewPage() {
   const [view, setView] = useState<OverviewView | null>(null);
   const [health, setHealth] = useState<HealthMetrics | null>(null);
   const [trend, setTrend] = useState<number[]>([]);
+  const [stressTrend, setStressTrend] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -34,15 +36,17 @@ export default function OverviewPage() {
     async function load(): Promise<void> {
       try {
         const db = getDatabase();
-        const [data, hm, tr] = await Promise.all([
+        const [data, hm, tr, st] = await Promise.all([
           loadOverview(db),
           loadHealthMetrics(db),
           loadStrainTrend(db, 7),
+          loadStressTrend(db, 14),
         ]);
         if (cancelled) return;
         setView(data);
         setHealth(hm);
         setTrend(tr);
+        setStressTrend(st);
         setLoaded(true);
       } catch (err) {
         if (!cancelled) setError(errorMessage(err, 'Load failed'));
@@ -122,7 +126,7 @@ export default function OverviewPage() {
           </div>
         </ErrorBoundary>
       </div>
-      <ErrorBoundary>
+       <ErrorBoundary>
         <div className="rounded-2xl border border-line bg-card p-4">
           <Sparkline
             values={trend.length > 0 ? trend : [view.strain]}
@@ -132,6 +136,14 @@ export default function OverviewPage() {
           />
         </div>
       </ErrorBoundary>
+      {stressTrend.length > 0 ? (
+        <ErrorBoundary>
+          <div className="rounded-2xl border border-line bg-card p-4">
+            <p className="mb-2 text-xs text-muted">14-day stress trend</p>
+            <Sparkline values={stressTrend} color="var(--color-warn)" label="14-day stress trend" testId="stress-spark" />
+          </div>
+        </ErrorBoundary>
+      ) : null}
     </section>
   );
 }

@@ -7,11 +7,13 @@ import { getDatabase } from '@/db/database';
 import { loadSleep } from '@/lib/db-analytics';
 import type { SleepView } from '@/lib/db-analytics';
 import { loadSleepConsistency } from '@/lib/sleep-consistency';
+import { loadSleepCoach, type SleepCoachView } from '@/lib/sleep-coach';
 import { errorMessage } from '@/lib/errors';
 
 export default function SleepPage() {
   const [view, setView] = useState<SleepView | null>(null);
   const [consistency, setConsistency] = useState<number | null>(null);
+  const [coach, setCoach] = useState<SleepCoachView | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,10 +22,11 @@ export default function SleepPage() {
     async function load(): Promise<void> {
       try {
         const db = getDatabase();
-        const [data, c] = await Promise.all([loadSleep(db), loadSleepConsistency(db)]);
+        const [data, c, coachData] = await Promise.all([loadSleep(db), loadSleepConsistency(db), loadSleepCoach(db)]);
         if (cancelled) return;
         setView(data);
         setConsistency(c);
+        setCoach(coachData);
         setLoaded(true);
       } catch (err) {
         if (!cancelled) setError(errorMessage(err, 'Failed to load sleep.'));
@@ -72,6 +75,16 @@ export default function SleepPage() {
           <p data-testid="sleep-consistency" className="text-muted">
             Sleep consistency: <span className="text-foreground">{consistency}/100</span>
           </p>
+        ) : null}
+        {coach ? (
+          <div className="mt-3 border-t border-line pt-3" data-testid="sleep-coach">
+            <p className="text-muted">
+              Recommended bedtime: <span className="text-foreground">{coach.recommendedBedtime}</span>
+            </p>
+            <p className="text-xs text-muted">
+              Sleep need {Math.round(coach.sleepNeedMinutes / 60)}h{coach.sleepNeedMinutes % 60}m · wake {coach.wakeTime} · debt {coach.sleepDebtMinutes} min
+            </p>
+          </div>
         ) : null}
       </div>
     </section>
