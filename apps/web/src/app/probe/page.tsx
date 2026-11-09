@@ -217,6 +217,23 @@ export default function ProbePage() {
         >
           Run full fetch
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            const text = log.map((l) => `${l.at} ${l.text}`).join('\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `probe-log-${new Date().toISOString()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          data-testid="probe-export-log"
+           className="rounded border border-line px-2 py-1 text-xs font-semibold min-h-11"
+        >
+          Export log (txt)
+        </button>
       </div>
       <div className="flex gap-2 flex-wrap">
         {['TRIGGER_SYNC', 'ACTIVITY_FETCH_1', 'ACTIVITY_FETCH_2'].map((name) => (
