@@ -6,6 +6,7 @@ import {
   decodeSpo2,
   decodeStress,
   decodeWorkoutGps,
+  decodeWorkoutSummary,
 } from './wire.js';
 
 function payload(bytes: number, fill: (view: DataView) => void): Uint8Array {
@@ -182,5 +183,27 @@ describe('decodeWorkoutGps', () => {
 
   it('rejects misaligned payloads', () => {
     expect(decodeWorkoutGps(new Uint8Array(11)).ok).toBe(false);
+  });
+});
+
+describe('decodeWorkoutSummary', () => {
+  it('decodes a 54-byte Pro 2 record', () => {
+    const data = payload(54, (view) => {
+      view.setUint32(0, 1_700_000_000, true);
+      view.setInt16(4, 1800, true);
+      view.setUint8(6, 0x72);
+      view.setUint32(26, 1_700_001_800, true);
+      view.setUint8(30, 0);
+    });
+    const result = decodeWorkoutSummary(data);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toHaveLength(1);
+      expect(result.value[0]?.activityType).toBe('indoor cycling');
+    }
+  });
+
+  it('rejects malformed payload', () => {
+    expect(decodeWorkoutSummary(new Uint8Array(10)).ok).toBe(false);
   });
 });
