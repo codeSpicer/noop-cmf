@@ -32,6 +32,7 @@ import {
   decodeActivityData,
   decodeHeartRate,
   decodeSleepData,
+  decodeWorkoutSummary,
   decodeSpo2,
   decodeStress,
 } from './wire.js';
@@ -225,6 +226,8 @@ export class CmfBleProvider implements WatchDataProvider {
           case 'WORKOUT_SUMMARY':
           case 'WORKOUT_SUMMARY_V3': {
             this.lastRawWorkoutFrames.push(payload.slice());
+            const decoded = decodeWorkoutSummary(payload);
+            if (decoded.ok) this.cachedWorkouts.push(...decoded.value);
             break;
           }
           default:

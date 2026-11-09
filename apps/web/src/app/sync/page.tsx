@@ -121,7 +121,7 @@ export default function SyncPage() {
       }
       await provider.disconnect();
       setStatus(
-        `BLE sync: ${String(counts.hr)} HR, ${String(counts.stress)} stress, ${String(counts.spo2)} spo2, ${String(counts.sleep)} sleep, ${String(counts.steps)} steps.`,
+        `BLE sync: ${String(counts.hr)} HR, ${String(counts.stress)} stress, ${String(counts.spo2)} spo2, ${String(counts.sleep)} sleep, ${String(counts.steps)} steps, ${String(counts.workouts)} workouts.`,
       );
     } catch (err) {
       setStatus(`BLE sync failed: ${errorMessage(err, 'unknown error')}`);

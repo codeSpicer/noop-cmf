@@ -17,6 +17,7 @@ import {
   type SleepSegment,
   type Spo2Sample,
   type StressSample,
+  type Workout,
 } from '@noop-cmf/types';
 import { MS_PER_SECOND, decodeCmfStage, toEpochMsSeconds } from './samples.js';
 
@@ -185,4 +186,69 @@ export function decodeWorkoutGps(payload: Uint8Array): Result<WorkoutGpsRecord[]
     });
   }
   return ok(out);
+}
+
+/** Workout summary record stride (Watch Pro 1). */
+export const WORKOUT_SUMMARY_RECORD_BYTES_PRO1 = 32;
+/** Workout summary record stride (Watch Pro 2). */
+export const WORKOUT_SUMMARY_RECORD_BYTES_PRO2 = 54;
+
+const ACTIVITY_TYPE_NAMES: Record<number, string> = {
+  0x01: 'outdoor walking',
+  0x02: 'outdoor running',
+  0x03: 'indoor running',
+  0x04: 'mountain hike',
+  0x05: 'outdoor cycling',
+  0x06: 'jump rope',
+  0x07: 'soccer',
+  0x08: 'basketball',
+  0x09: 'badminton',
+  0x0a: 'table tennis',
+  0x0b: 'cricket',
+  0x0c: 'tennis',
+  0x0d: 'dynamic cycle',
+  0x0e: 'rower',
+  0x0f: 'yoga',
+  0x10: 'free training',
+  0x13: 'strength training',
+  0x18: 'cross trainer',
+  0x19: 'indoor walking',
+  0x1a: 'hiking',
+  0x72: 'indoor cycling',
+};
+
+export function activityTypeName(code: number): string {
+  return ACTIVITY_TYPE_NAMES[code] ?? `activity ${String(code)}`;
+}
+
+/** `WORKOUT_SUMMARY`: N records of 32 (Pro 1) or 54 (Pro 2) bytes. */
+export function decodeWorkoutSummary(payload: Uint8Array): Result<Workout[], string> {
+  if (payload.length === 0) {
+    return err('Workout summary payload is empty');
+  }
+  let stride = 0;
+  if (payload.length % WORKOUT_SUMMARY_RECORD_BYTES_PRO2 === 0) {
+    stride = WORKOUT_SUMMARY_RECORD_BYTES_PRO2;
+  } else if (payload.length % WORKOUT_SUMMARY_RECORD_BYTES_PRO1 === 0) {
+    stride = WORKOUT_SUMMARY_RECORD_BYTES_PRO1;
+  } else {
+    return err(`Workout summary payload size ${String(payload.length)} is malformed`);
+  }
+  const data = view(payload);
+  const workouts: Workout[] = [];
+  for (let offset = 0; offset < payload.length; offset += stride) {
+    const start = toEpochMsSeconds(data.getUint32(offset, true));
+    const typeCode = data.getUint8(offset + 6);
+    const end = toEpochMsSeconds(data.getUint32(offset + 26, true));
+    if (start === undefined || end === undefined || end <= start) {
+      continue;
+    }
+    workouts.push({
+      id: `${String(start)}-${String(end)}`,
+      start,
+      end,
+      activityType: activityTypeName(typeCode),
+    });
+  }
+  return ok(workouts);
 }
