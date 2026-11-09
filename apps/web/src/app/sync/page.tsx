@@ -14,6 +14,7 @@ import { errorMessage } from '@/lib/errors';
 import { importAll } from '@/lib/import';
 import { loadAuthKey, saveAuthKey } from '@/lib/ble-auth-store';
 import { exportAllData } from '@/lib/export';
+import { importAllFromJson } from '@/lib/import-json';
 
 /** Sync route: demo persona selector, Gadgetbridge dropzone, mock BLE sync. */
 export default function SyncPage() {
@@ -60,6 +61,18 @@ export default function SyncPage() {
       );
     } catch (err) {
       setStatus(`Import failed: ${errorMessage(err, 'unknown error')}`);
+    }
+  }
+
+  async function handleJsonImport(file: File): Promise<void> {
+    setStatus(`Importing ${file.name}…`);
+    try {
+      const counts = await importAllFromJson(file);
+      setStatus(
+        `JSON import: ${String(counts.hr)} HR, ${String(counts.stress)} stress, ${String(counts.spo2)} spo2, ${String(counts.sleep)} sleep, ${String(counts.steps)} steps, ${String(counts.workouts)} workouts, ${String(counts.rawFrames)} raw frames.`,
+      );
+    } catch (err) {
+      setStatus(`JSON import failed: ${errorMessage(err, 'unknown error')}`);
     }
   }
 
@@ -201,6 +214,22 @@ export default function SyncPage() {
       >
         Export data (JSON)
       </button>
+      <label className="inline-block cursor-pointer rounded-full border border-line bg-surface px-5 py-2 text-sm font-semibold text-foreground">
+        Import data (JSON)
+        <input
+          type="file"
+          accept=".json,application/json"
+          aria-label="Import JSON data"
+          className="sr-only"
+          data-testid="import-json"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) {
+              void handleJsonImport(file);
+            }
+          }}
+        />
+      </label>
     </section>
   );
 }
