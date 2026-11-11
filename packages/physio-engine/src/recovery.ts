@@ -98,6 +98,10 @@ export interface OvernightMetrics {
   readonly restingHeartRate: Bpm;
   readonly stress: number;
   readonly ehrv: Milliseconds;
+  /** Number of HR samples captured during asleep stages. */
+  readonly hrSampleCount: number;
+  /** Number of stress samples captured during asleep stages. */
+  readonly stressSampleCount: number;
 }
 
 /**
@@ -153,7 +157,13 @@ export function computeOvernightMetrics(
     ),
   ) as Milliseconds;
 
-  return { restingHeartRate, stress, ehrv };
+  return {
+    restingHeartRate,
+    stress,
+    ehrv,
+    hrSampleCount: hrValues.length,
+    stressSampleCount: stressValues.length,
+  };
 }
 
 /** One day of history feeding the rolling recovery calculator. */

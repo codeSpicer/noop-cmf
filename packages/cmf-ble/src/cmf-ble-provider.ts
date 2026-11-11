@@ -79,6 +79,8 @@ export class CmfBleProvider implements WatchDataProvider {
   private cachedSleep: SleepSegment[] = [];
   private cachedSteps: StepSample[] = [];
   private cachedWorkouts: Workout[] = [];
+  private workoutFramesReceived = 0;
+  private workoutDecodeErrors: string[] = [];
 
   constructor(options: CmfBleProviderOptions = {}) {
     this.model = options.model ?? DEFAULT_MODEL;
@@ -225,9 +227,14 @@ export class CmfBleProvider implements WatchDataProvider {
           }
           case 'WORKOUT_SUMMARY':
           case 'WORKOUT_SUMMARY_V3': {
+            this.workoutFramesReceived += 1;
             this.lastRawWorkoutFrames.push(payload.slice());
             const decoded = decodeWorkoutSummary(payload);
-            if (decoded.ok) this.cachedWorkouts.push(...decoded.value);
+            if (decoded.ok) {
+              this.cachedWorkouts.push(...decoded.value);
+            } else {
+              this.workoutDecodeErrors.push(`${name}(${String(payload.length)}b): ${decoded.error}`);
+            }
             break;
           }
           default:
@@ -261,7 +268,9 @@ export class CmfBleProvider implements WatchDataProvider {
       const stepMin = stepVals.length > 0 ? Math.min(...stepVals) : 0;
       const stepMax = stepVals.length > 0 ? Math.max(...stepVals) : 0;
       const stepSum = stepVals.reduce((a, b) => a + b, 0);
-      this.lastFetchDebug = `${debug.join(' | ')} || decoded: ${counts} || hr=${String(this.cachedHr.length)} stress=${String(this.cachedStress.length)} spo2=${String(this.cachedSpo2.length)} sleep=${String(this.cachedSleep.length)} steps=${String(this.cachedSteps.length)} (min=${String(stepMin)} max=${String(stepMax)} sum=${String(stepSum)})`;
+      const workoutDecode =
+        this.workoutDecodeErrors.length > 0 ? ` errors=[${this.workoutDecodeErrors.join('; ')}]` : '';
+      this.lastFetchDebug = `${debug.join(' | ')} || decoded: ${counts} || hr=${String(this.cachedHr.length)} stress=${String(this.cachedStress.length)} spo2=${String(this.cachedSpo2.length)} sleep=${String(this.cachedSleep.length)} steps=${String(this.cachedSteps.length)} (min=${String(stepMin)} max=${String(stepMax)} sum=${String(stepSum)}) workouts=${String(this.cachedWorkouts.length)} workoutFrames=${String(this.lastRawWorkoutFrames.length)}${workoutDecode}`;
       this.fetched = true;
     };
     const promise = run().finally(() => {

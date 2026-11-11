@@ -118,6 +118,11 @@ export default function OverviewPage() {
               </p>
               <ReadinessChip result={view.readiness} />
             </div>
+            {view.overnightHrSamples < 3 ? (
+              <p className="mt-3 text-sm text-amber-500">
+                Insufficient overnight HR data — recovery may be unreliable.
+              </p>
+            ) : null}
           </div>
         </ErrorBoundary>
         <ErrorBoundary>

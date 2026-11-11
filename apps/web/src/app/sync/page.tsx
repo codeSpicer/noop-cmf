@@ -122,7 +122,6 @@ export default function SyncPage() {
       const counts = await importAll(provider, { start, end }, db);
       // Persist raw workout frames for later decoding.
       if (provider.lastRawWorkoutFrames.length > 0) {
-        const db = getDatabase();
         await db.workoutRawFrames.bulkPut(
           provider.lastRawWorkoutFrames.map((f, i) => ({
             id: `frame-${String(Date.now())}-${String(i)}`,
@@ -130,11 +129,18 @@ export default function SyncPage() {
             capturedAt: Date.now(),
           })),
         );
-        console.log('WORKOUT_SUMMARY frames:', provider.lastRawWorkoutFrames.map((f) => Array.from(f).map((b) => b.toString(16).padStart(2, '0')).join(' ')));
+        console.log(
+          'WORKOUT_SUMMARY frames:',
+          provider.lastRawWorkoutFrames.map((f) => Array.from(f).map((b) => b.toString(16).padStart(2, '0')).join(' ')),
+        );
+      }
+      if (provider.lastFetchDebug) {
+        console.log('Sync debug:', provider.lastFetchDebug);
       }
       await provider.disconnect();
+      const debugSuffix = provider.lastFetchDebug ? ` Debug: ${provider.lastFetchDebug}` : '';
       setStatus(
-        `BLE sync: ${String(counts.hr)} HR, ${String(counts.stress)} stress, ${String(counts.spo2)} spo2, ${String(counts.sleep)} sleep, ${String(counts.steps)} steps, ${String(counts.workouts)} workouts.`,
+        `BLE sync: ${String(counts.hr)} HR, ${String(counts.stress)} stress, ${String(counts.spo2)} spo2, ${String(counts.sleep)} sleep, ${String(counts.steps)} steps, ${String(counts.workouts)} workouts.${debugSuffix}`,
       );
     } catch (err) {
       setStatus(`BLE sync failed: ${errorMessage(err, 'unknown error')}`);

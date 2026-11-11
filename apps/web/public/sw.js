@@ -1,4 +1,4 @@
-const CACHE_NAME = 'noop-cmf-v2';
+const CACHE_NAME = 'noop-cmf-v3';
 const PRECACHE = ['/', '/manifest.webmanifest', '/sql-wasm.wasm'];
 
 self.addEventListener('install', (event) => {

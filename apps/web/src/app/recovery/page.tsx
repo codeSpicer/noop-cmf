@@ -95,6 +95,16 @@ export default function RecoveryPage() {
             Overnight RHR: <span className="text-foreground">{view.rhr} bpm</span>
           </p>
         </div>
+        {view.overnightHrSamples < 3 ? (
+          <p className="mt-3 text-sm text-amber-500">
+            Insufficient overnight HR data ({String(view.overnightHrSamples)} samples) — recovery and overnight metrics may be unreliable. Wear the watch snugly with HR monitoring on during sleep.
+          </p>
+        ) : null}
+        {view.historyDays < 3 ? (
+          <p className="mt-2 text-sm text-muted">
+            Baseline warming up: {String(view.historyDays)} day{view.historyDays === 1 ? '' : 's'} of overnight history (3+ recommended).
+          </p>
+        ) : null}
       </div>
       <ReadinessCard result={view.readiness} />
       {rhrTrend.length >= 2 ? (

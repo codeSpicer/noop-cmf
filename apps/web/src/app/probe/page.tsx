@@ -5,6 +5,7 @@ import {
   ALL_COMMANDS,
   CmfBleSession,
   WebBleTransport,
+  decodeWorkoutSummary,
   getNavigatorBluetooth,
   shouldEncrypt,
   commandFromCodes,
@@ -15,6 +16,7 @@ import {
   VENDOR_FFF1_NOTIFY_CHAR_UUID,
   type CmfCommandDef,
 } from '@noop-cmf/cmf-ble';
+import { getDatabase } from '@/db/database';
 import { loadAuthKey, saveAuthKey } from '@/lib/ble-auth-store';
 
 type LogLine = { readonly at: string; readonly text: string };
@@ -49,6 +51,38 @@ export default function ProbePage() {
       setStatus(started.error.message);
       return;
     }
+    s.setFrameHandler((cmd, payload) => {
+      const def = commandFromCodes(cmd.cmd1, cmd.cmd2);
+      const frameName = def?.name ?? 'unknown';
+      if (frameName === 'WORKOUT_SUMMARY' || frameName === 'WORKOUT_SUMMARY_V3') {
+        const decoded = decodeWorkoutSummary(payload);
+        const hex = bytesToHex(payload);
+        if (decoded.ok) {
+          append(
+            `[frame] ${frameName} ${String(payload.length)}b decoded=${String(decoded.value.length)} workout(s): ${decoded.value.map((w) => `${w.activityType} ${new Date(w.start).toISOString()}-${new Date(w.end).toISOString()}`).join(', ')}`,
+          );
+        } else {
+          append(`[frame] ${frameName} ${String(payload.length)}b decode failed: ${decoded.error}`);
+        }
+        append(`[frame-hex] ${frameName} ${hex}`);
+        void (async () => {
+          try {
+            const db = getDatabase();
+            await db.workoutRawFrames.put({
+              id: `probe-${String(Date.now())}-${Math.random().toString(36).slice(2)}`,
+              data: Array.from(payload).map((b) => b.toString(16).padStart(2, '0')).join(''),
+              capturedAt: Date.now(),
+            });
+            if (decoded.ok && decoded.value.length > 0) {
+              await db.workouts.bulkPut(decoded.value as never);
+              append(`[frame] saved ${String(decoded.value.length)} workout(s) to DB`);
+            }
+          } catch (e) {
+            append(`[frame] save failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        })();
+      }
+    });
     await t.startNotifications(VENDOR_FFF1_NOTIFY_CHAR_UUID, (value: Uint8Array) => {
       const view = new DataView(value.buffer, value.byteOffset, value.byteLength);
       let name = 'unknown';

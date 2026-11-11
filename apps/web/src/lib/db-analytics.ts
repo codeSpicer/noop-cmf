@@ -21,6 +21,7 @@ import { computeReadinessFromData } from './readiness';
 const DAY_MS = 86_400_000;
 const BASELINE_RHR = 50;
 const BASELINE_HR_MAX = 190;
+const MIN_OVERNIGHT_HR_SAMPLES = 3;
 
 export async function hasData(db: NoopCmfDatabase = getDatabase()): Promise<boolean> {
   const count = await db.hrSamples.count();
@@ -65,6 +66,8 @@ export interface OverviewView {
   readonly hrSamples: readonly HrSample[];
   readonly sleepSegments: readonly SleepSegment[];
   readonly workouts: readonly Workout[];
+  readonly overnightHrSamples: number;
+  readonly historyDays: number;
 }
 
 export async function loadOverview(
@@ -94,12 +97,14 @@ export async function loadOverview(
     const dSleep = sleepRows.filter((s) => s.start < dEnd && s.end > dStart);
     const dStress = stressRows.filter((s) => s.timestamp >= dStart && s.timestamp < dEnd);
     const dOvernight = computeOvernightMetrics(dHr, dStress, dSleep, BASELINE_RHR);
+    if (dOvernight.hrSampleCount < MIN_OVERNIGHT_HR_SAMPLES) continue;
     history.push({ ehrv: dOvernight.ehrv, restingHeartRate: dOvernight.restingHeartRate });
   }
+  const sleepPerfForRecovery = daySleep.length > 0 ? summary.sleepPerformance : 50;
   const recovery = computeRecovery({
     ehrvToday: overnight.ehrv,
     rhrToday: overnight.restingHeartRate,
-    sleepPerformance: summary.sleepPerformance || 85,
+    sleepPerformance: sleepPerfForRecovery,
     history,
   });
   const weekStart = range.end - 7 * DAY_MS;
@@ -122,6 +127,8 @@ export async function loadOverview(
     hrSamples: dayHr,
     sleepSegments: daySleep,
     workouts: workoutRows,
+    overnightHrSamples: overnight.hrSampleCount,
+    historyDays: history.length,
   };
 }
 
@@ -132,6 +139,9 @@ export interface RecoveryView {
   readonly readiness: ReturnType<typeof computeReadinessFromData>;
   readonly hrSamples: readonly HrSample[];
   readonly sleepSegments: readonly SleepSegment[];
+  readonly overnightHrSamples: number;
+  readonly overnightStressSamples: number;
+  readonly historyDays: number;
 }
 
 export async function loadRecovery(
@@ -161,16 +171,17 @@ export async function loadRecovery(
     const dSleep = sleepRows.filter((s) => s.start < dEnd && s.end > dStart);
     const dStress = stressRows.filter((s) => s.timestamp >= dStart && s.timestamp < dEnd);
     const dOvernight = computeOvernightMetrics(dHr, dStress, dSleep, BASELINE_RHR);
-    analyzeSleep(dSleep);
+    if (dOvernight.hrSampleCount < MIN_OVERNIGHT_HR_SAMPLES) continue;
     history.push({
       ehrv: dOvernight.ehrv,
       restingHeartRate: dOvernight.restingHeartRate,
     });
   }
+  const sleepPerfForRecovery = daySleep.length > 0 ? summary.sleepPerformance : 50;
   const recovery = computeRecovery({
     ehrvToday: overnight.ehrv,
     rhrToday: overnight.restingHeartRate,
-    sleepPerformance: summary.sleepPerformance || 85,
+    sleepPerformance: sleepPerfForRecovery,
     history,
   });
   const weekStart = range.end - 7 * DAY_MS;
@@ -190,6 +201,9 @@ export async function loadRecovery(
     readiness,
     hrSamples: dayHr,
     sleepSegments: daySleep,
+    overnightHrSamples: overnight.hrSampleCount,
+    overnightStressSamples: overnight.stressSampleCount,
+    historyDays: history.length,
   };
 }
 

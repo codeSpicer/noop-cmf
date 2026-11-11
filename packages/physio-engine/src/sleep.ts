@@ -36,16 +36,30 @@ export interface SleepSummary {
 /**
  * Analyze sleep segments for a single night.
  *
- * Empty input yields a zeroed summary (no sleep recorded) rather than NaN.
+ * Time in bed is the span from first segment start to last segment end, so
+ * unsegmented gaps count against efficiency. Empty input yields a zeroed
+ * summary (no sleep recorded) rather than NaN.
  */
 export function analyzeSleep(segments: readonly SleepSegment[]): SleepSummary {
-  let timeInBedMinutes = 0;
+  if (segments.length === 0) {
+    return {
+      timeInBedMinutes: 0,
+      totalSleepMinutes: 0,
+      restorativeShare: 0,
+      sleepEfficiency: 0,
+      sleepPerformance: 0,
+    };
+  }
+
+  let minStart = Infinity;
+  let maxEnd = -Infinity;
   let totalSleepMinutes = 0;
   let restorativeMinutes = 0;
 
   for (const segment of segments) {
     const minutes = Math.max(0, (segment.end - segment.start) / MS_PER_MINUTE);
-    timeInBedMinutes += minutes;
+    if (segment.start < minStart) minStart = segment.start;
+    if (segment.end > maxEnd) maxEnd = segment.end;
     if (segment.stage === 'light' || segment.stage === 'deep' || segment.stage === 'rem') {
       totalSleepMinutes += minutes;
     }
@@ -54,10 +68,11 @@ export function analyzeSleep(segments: readonly SleepSegment[]): SleepSummary {
     }
   }
 
+  const timeInBedMinutes = Math.max(0, (maxEnd - minStart) / MS_PER_MINUTE);
   if (timeInBedMinutes <= 0 || totalSleepMinutes <= 0) {
     return {
-      timeInBedMinutes: round1(Math.max(0, timeInBedMinutes)),
-      totalSleepMinutes: 0,
+      timeInBedMinutes: round1(timeInBedMinutes),
+      totalSleepMinutes: round1(totalSleepMinutes),
       restorativeShare: 0,
       sleepEfficiency: 0,
       sleepPerformance: 0,

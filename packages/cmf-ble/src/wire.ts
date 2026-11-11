@@ -214,6 +214,7 @@ const ACTIVITY_TYPE_NAMES: Record<number, string> = {
   0x18: 'cross trainer',
   0x19: 'indoor walking',
   0x1a: 'hiking',
+  0x2e: 'other workout',
   0x72: 'indoor cycling',
 };
 
