@@ -32,6 +32,13 @@ describe('workout-trimp', () => {
     await db.hrSamples.bulkPut([hr(start + 100, 150), hr(start + 200, 160)]);
     const result = await loadWorkoutTrimp(db);
     expect(result).toHaveLength(1);
-    expect(result[0]?.id).toBe('w1');
+    expect(result[0]).toMatchObject({
+      id: 'w1',
+      activityType: 'run',
+      hrSamples: 2,
+      avgHeartRate: 155,
+      maxHeartRate: 160,
+    });
+    expect(result[0]?.durationMin).toBe(0);
   });
 });

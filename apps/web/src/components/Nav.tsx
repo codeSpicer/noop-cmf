@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 const NAV: ReadonlyArray<{ href: string; label: string }> = [
   { href: '/', label: 'Overview' },
   { href: '/strain', label: 'Strain' },
+  { href: '/workouts', label: 'Workouts' },
   { href: '/training', label: 'Training' },
   { href: '/recovery', label: 'Recovery' },
   { href: '/weekly', label: 'Weekly' },

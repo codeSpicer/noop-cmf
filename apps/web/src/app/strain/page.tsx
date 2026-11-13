@@ -119,13 +119,26 @@ export default function StrainPage() {
             ))}
           </div>
           {workouts.length > 0 ? (
-            <ul className="mt-4 space-y-1 text-sm text-muted" data-testid="workout-trimp-list">
-              {workouts.map((w) => (
-                <li key={w.id}>
-                  {w.activityType}: TRIMP {w.trimp.toFixed(1)}, strain {w.strain.toFixed(1)}
-                </li>
-              ))}
-            </ul>
+            <div className="mt-4" data-testid="workout-trimp-list">
+              <p className="mb-2 text-sm font-medium text-foreground">Workouts</p>
+              <ul className="space-y-2 text-sm text-muted">
+                {workouts.map((w) => (
+                  <li key={w.id} className="border-t border-line pt-2 first:border-t-0 first:pt-0">
+                    <p className="text-foreground">
+                      {w.activityType}{' '}
+                      <span className="text-muted">· {new Date(w.start).toLocaleString()}</span>
+                    </p>
+                    <p>
+                      {w.durationMin.toFixed(1)} min · TRIMP {w.trimp.toFixed(1)} · strain{' '}
+                      {w.strain.toFixed(1)}
+                      {w.avgHeartRate !== null ? ` · avg ${w.avgHeartRate} bpm` : ''}
+                      {w.maxHeartRate !== null ? ` · max ${w.maxHeartRate} bpm` : ''}
+                      {w.hrSamples > 0 ? ` · ${String(w.hrSamples)} HR samples` : ' · no HR samples in window'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
         </div>
       </ErrorBoundary>
