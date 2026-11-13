@@ -6,7 +6,7 @@ noop-cmf is an open-source TypeScript monorepo and Next.js PWA that syncs data f
 
 The goal is to give CMF watch owners deeper, private, own-your-data analytics (in the spirit of Whoop-style insights) without vendor lock-in, and to grow this into a community-driven open-source project. If you have a CMF watch, try it, break it, and help make it better.
 
-**Try it now:** [noop-cmf-wheat.vercel.app](https://noop-cmf-wheat.vercel.app/) — open in a **Chromium-based browser** (desktop or Android) for Web Bluetooth sync. (iOS browsers don’t support Web Bluetooth; see [compatibility](#supported-devices--compatibility) and [using with the official Nothing/CMF app](#important-using-with-the-official-nothingcmf-app).)
+**Try it now:** [noop-cmf.vercel.app](https://noop-cmf.vercel.app/) — open in a **Chromium-based browser** (desktop or Android) for Web Bluetooth sync. (iOS browsers don’t support Web Bluetooth; see [compatibility](#supported-devices--compatibility) and [using with the official Nothing/CMF app](#important-using-with-the-official-nothingcmf-app).)
 
 > **Status:** active development / early but usable. Core sync, analytics, backup, and the PWA work; workout decoding, GPS, and some protocol details are still being validated and improved against real hardware. Contributions and real-device feedback are very welcome.
 
@@ -14,12 +14,12 @@ The goal is to give CMF watch owners deeper, private, own-your-data analytics (i
 
 > These are placeholders — replace them with real screenshots/photos of your dashboard in [`docs/screenshots/`](docs/screenshots/) (same filenames, `.svg` or `.png`). PRs with real screenshots are especially welcome.
 
-| Overview | Recovery | Sleep |
-| --- | --- | --- |
+| Overview                                                                                     | Recovery                                                               | Sleep                                                                        |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | ![Overview dashboard showing recovery, strain, and readiness](docs/screenshots/overview.svg) | ![Recovery score, RHR, and eHRV trends](docs/screenshots/recovery.svg) | ![Sleep hypnogram, performance, and sleep coach](docs/screenshots/sleep.svg) |
 
-| Strain & Workouts | Weekly & Training | Sync & Import |
-| --- | --- | --- |
+| Strain & Workouts                                                                                | Weekly & Training                                                                       | Sync & Import                                                                          |
+| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | ![Daily strain, HR zones, and workout log with TCX export](docs/screenshots/strain-workouts.svg) | ![Weekly summary and training load (ACWR/status)](docs/screenshots/weekly-training.svg) | ![Web Bluetooth sync, Gadgetbridge import, and JSON backup](docs/screenshots/sync.svg) |
 
 ## What this project does
@@ -33,6 +33,7 @@ The goal is to give CMF watch owners deeper, private, own-your-data analytics (i
 ## Features
 
 ### Data sync & storage
+
 - **Web Bluetooth sync** with CMF Watch Pro 2 (pairing/auth and on-demand fetch).
 - **Gadgetbridge SQLite import** (`.db` file drop/select).
 - **JSON export/import** for full backup and restore (imports **merge** into local data, so repeated syncs/imports accumulate history).
@@ -41,6 +42,7 @@ The goal is to give CMF watch owners deeper, private, own-your-data analytics (i
 - **PWA** with offline-capable shell and install prompt.
 
 ### Analytics & insights
+
 - **Recovery (1–99):** from overnight HR/stress vs a rolling ~30-day baseline, with resting heart rate (RHR) and an eHRV proxy.
 - **Readiness / time-to-recovery:** decaying readiness after strain with a “ready to go” countdown.
 - **Strain (0–21):** daily load from Banister TRIMP and HR zones, zone breakdown, intensity minutes, and per-workout TRIMP/HR stats.
@@ -52,6 +54,7 @@ The goal is to give CMF watch owners deeper, private, own-your-data analytics (i
 - **VO₂ max estimator:** Cooper (12-min run) and Rockport (1-mile walk) tests with fitness category.
 
 ### Workouts & Strava
+
 - **Workouts log:** synced workout sessions with time, duration, TRIMP/strain, and HR stats computed from samples in the workout window.
 - **Export TCX for Strava:** download a Garmin TCX file per workout from the **Workouts** page and upload it manually to [Strava](https://www.strava.com/upload/select). Exports include duration and HR trackpoints/stats when available and work for **GPS-less** workouts; GPS route data can be attached when GPS capture is fully wired (in progress). No Strava account linking or backend required.
 
@@ -87,20 +90,22 @@ noop-cmf/
 
 ## Supported devices & compatibility
 
-| | Support / notes |
-| --- | --- |
-| **Watch** | **Nothing CMF Watch Pro 2** (primary target). Other CMF models (e.g. Watch Pro 3) are untested/planned — reports welcome. |
-| **Web Bluetooth sync** | **Chromium-based browsers** on desktop and Android (Chrome, Edge, etc.). **iOS browsers do not support Web Bluetooth** (Safari/Chrome on iPhone/iPad can’t do BLE sync). Brave/hardened browser configs may disable Web Bluetooth. |
-| **Gadgetbridge import** | Gadgetbridge SQLite `.db` exports (works anywhere you can load the file in the browser). |
-| **Strava** | Manual **TCX file upload** (no account linking, no backend). |
-| **Hosting** | Runs locally (`next dev`) or deployed (e.g. Vercel or any host compatible with Next.js). |
+|                         | Support / notes                                                                                                                                                                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Watch**               | **Nothing CMF Watch Pro 2** (primary target). Other CMF models (e.g. Watch Pro 3) are untested/planned — reports welcome.                                                                                                          |
+| **Web Bluetooth sync**  | **Chromium-based browsers** on desktop and Android (Chrome, Edge, etc.). **iOS browsers do not support Web Bluetooth** (Safari/Chrome on iPhone/iPad can’t do BLE sync). Brave/hardened browser configs may disable Web Bluetooth. |
+| **Gadgetbridge import** | Gadgetbridge SQLite `.db` exports (works anywhere you can load the file in the browser).                                                                                                                                           |
+| **Strava**              | Manual **TCX file upload** (no account linking, no backend).                                                                                                                                                                       |
+| **Hosting**             | Runs locally (`next dev`) or deployed (e.g. Vercel or any host compatible with Next.js).                                                                                                                                           |
 
 ## Getting started
 
 ### Try the hosted app (no install)
-You can try noop-cmf without setting up a dev environment at **[noop-cmf-wheat.vercel.app](https://noop-cmf-wheat.vercel.app/)**. Use a **Chromium-based browser** (Chrome/Edge on desktop or Android) for Web Bluetooth sync. Your data stays in your browser’s local storage (IndexedDB) — the hosted app has no backend or telemetry. You can also import Gadgetbridge `.db` exports or JSON backups there.
+
+You can try noop-cmf without setting up a dev environment at **[noop-cmf.vercel.app](https://noop-cmf.vercel.app/)**. Use a **Chromium-based browser** (Chrome/Edge on desktop or Android) for Web Bluetooth sync. Your data stays in your browser’s local storage (IndexedDB) — the hosted app has no backend or telemetry. You can also import Gadgetbridge `.db` exports or JSON backups there.
 
 ### Prerequisites (for local development)
+
 - **Node.js** >= 20
 - **pnpm** >= 9 (repo uses `pnpm@11.x` via `packageManager`)
 - A **Chromium-based browser** (desktop or Android) for Web Bluetooth sync, or a Gadgetbridge `.db` export
@@ -165,11 +170,12 @@ This comes up often, so please read before your first sync:
 **What we’re trying to do:** make this the best open, private, hackable companion analytics app for CMF watches — accurate physiology, great UX, and easy ways to get your data out (Strava and beyond) — driven by the community.
 
 **Help wanted / areas to grow (great for contributors):**
+
 - **Protocol & device support:** validate and improve BLE decoding/pairing/fetch on real CMF Watch Pro 2 hardware; expand/verify support for other CMF models.
 - **Workouts & GPS:** refine workout decoding, end-to-end GPS capture/association/validation, and richer activity exports (GPS tracks, distance/pace).
 - **Analytics quality:** tune models, baselines, and edge cases with more real-world data/feedback.
 - **UX & visualization:** dashboard polish, accessibility, mobile experience, and more insightful views.
-- **Strava & integrations:** improve TCX/sport mapping; explore (opt-in) one-tap Strava upload via a minimal backend *without* moving health metrics to the cloud.
+- **Strava & integrations:** improve TCX/sport mapping; explore (opt-in) one-tap Strava upload via a minimal backend _without_ moving health metrics to the cloud.
 - **Docs & testing:** setup guides, device/browser compatibility reports, screenshots, and automated tests.
 
 If you own a CMF watch, trying the app and reporting what works/doesn’t (device, browser, firmware, steps) is hugely valuable even if you don’t write code.
