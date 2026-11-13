@@ -2,6 +2,7 @@
   "name": "noop-cmf",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Open-source, local-first Whoop-style physiological analytics and CMF Watch Pro WebBLE companion.",
   "packageManager": "pnpm@11.3.0",
   "engines": {

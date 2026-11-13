@@ -3,16 +3,34 @@
 import { useEffect, useState } from 'react';
 import { CmfBleProvider, GadgetbridgeSqliteProvider, WebBleTransport, getNavigatorBluetooth, loadSqlJs } from '@noop-cmf/cmf-ble';
 import { EpochMsSchema } from '@noop-cmf/types';
+import type { PersonaId } from '@noop-cmf/watch-simulator';
 import { getDatabase } from '@/db/database';
 import { errorMessage } from '@/lib/errors';
 import { importAll } from '@/lib/import';
 import { loadAuthKey, saveAuthKey } from '@/lib/ble-auth-store';
 import { exportAllData } from '@/lib/export';
 import { importAllFromJson } from '@/lib/import-json';
+import { demoPersonas } from '@/lib/demo-provider';
+import {
+  disableSimulatorMode,
+  enableSimulatorMode,
+  getSimulatorState,
+} from '@/lib/simulator-mode';
 
-/** Sync route: demo persona selector, Gadgetbridge dropzone, mock BLE sync. */
+/** Sync route: watch sync, data import/export, and watch simulator demo mode. */
 export default function SyncPage() {
   const [status, setStatus] = useState('Idle');
+  const [simulatorActive, setSimulatorActive] = useState(false);
+  const [simulatorPersona, setSimulatorPersona] = useState<PersonaId>('endurance-runner');
+  const [simulatorBusy, setSimulatorBusy] = useState(false);
+
+  useEffect(() => {
+    const state = getSimulatorState();
+    setSimulatorActive(state.active);
+    if (state.persona) {
+      setSimulatorPersona(state.persona);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,6 +144,30 @@ export default function SyncPage() {
     }
   }
 
+  async function toggleSimulator(): Promise<void> {
+    setSimulatorBusy(true);
+    try {
+      const db = getDatabase();
+      if (simulatorActive) {
+        await disableSimulatorMode(db);
+        setSimulatorActive(false);
+        setStatus(
+          'Simulator mode turned off. Temporary demo data was removed; your synced/imported data was not changed.',
+        );
+      } else {
+        const result = await enableSimulatorMode(simulatorPersona, db);
+        setSimulatorActive(true);
+        setStatus(
+          `Simulator mode enabled (${result.persona}). Seeded ${String(result.inserted.hr)} HR, ${String(result.inserted.sleep)} sleep, ${String(result.inserted.workouts)} workout records (and related samples). Open Overview/other pages to explore. Turn off to remove only this demo data — your synced/imported data stays safe.`,
+        );
+      }
+    } catch (err) {
+      setStatus(`Simulator error: ${errorMessage(err, 'unknown error')}`);
+    } finally {
+      setSimulatorBusy(false);
+    }
+  }
+
   return (
     <section aria-label="Sync" className="space-y-4">
       <header>
@@ -205,6 +247,57 @@ export default function SyncPage() {
           }}
         />
       </label>
+
+      <div className="rounded-2xl border border-line bg-card p-6 space-y-3" data-testid="simulator-card">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Simulator mode (demo)</p>
+          <p className="text-sm text-muted">
+            Seed sample watch data into this browser to explore the dashboard without a watch. Turning
+            it off removes only the simulator demo data — your synced/imported data is not changed or
+            deleted.
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Status: {simulatorActive ? `On (${simulatorPersona})` : 'Off'}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-sm text-muted">
+            Persona{' '}
+            <select
+              value={simulatorPersona}
+              onChange={(event) => {
+                setSimulatorPersona(event.target.value as PersonaId);
+              }}
+              disabled={simulatorBusy}
+              className="ml-1 rounded-lg border border-line bg-surface px-2 py-1 text-foreground"
+              data-testid="simulator-persona"
+            >
+              {demoPersonas().map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              void toggleSimulator();
+            }}
+            disabled={simulatorBusy}
+            className="rounded-full border border-line bg-surface px-4 py-2 text-sm font-semibold text-foreground hover:bg-void disabled:cursor-not-allowed disabled:opacity-60"
+            data-testid="simulator-toggle"
+          >
+            {simulatorBusy
+              ? simulatorActive
+                ? 'Turning off…'
+                : 'Seeding…'
+              : simulatorActive
+                ? 'Turn off simulator'
+                : 'Enable simulator'}
+          </button>
+        </div>
+      </div>
     </section>
   );
 }

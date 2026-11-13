@@ -36,6 +36,7 @@ The goal is to give CMF watch owners deeper, private, own-your-data analytics (i
 - **Web Bluetooth sync** with CMF Watch Pro 2 (pairing/auth and on-demand fetch).
 - **Gadgetbridge SQLite import** (`.db` file drop/select).
 - **JSON export/import** for full backup and restore (imports **merge** into local data, so repeated syncs/imports accumulate history).
+- **Watch simulator (demo mode):** seed temporary sample data to explore the dashboard without a watch; turning it off removes only the simulator demo data and leaves your synced/imported data intact.
 - **Local-first storage** in browser IndexedDB (Dexie).
 - **PWA** with offline-capable shell and install prompt.
 
@@ -140,11 +141,12 @@ pnpm format:check  # check
 ## How to use
 
 1. **Open the app** in a supported browser (Chromium on desktop/Android) — locally or a deployed instance — and go to **Sync**.
-2. **Sync from the watch (Web Bluetooth):** click **Connect & sync** and grant Bluetooth permission when prompted. Data is fetched and merged into local storage (repeated syncs accumulate; they don’t wipe existing data).
-3. **Or import Gadgetbridge data:** on **Sync**, drop/select a Gadgetbridge SQLite `.db` export to import historical samples.
-4. **Back up / restore:** use **Export data (JSON)** for a full snapshot and **Import data (JSON)** to restore/merge (recommended before clearing browser data or moving devices/browsers).
-5. **Explore analytics:** Overview, Strain, Recovery, Sleep, Weekly, Training, Workouts, Journal, and VO₂ Max pages visualize metrics computed from your locally stored data.
-6. **Export a workout to Strava:** open **Workouts**, click **Export TCX** on a workout to download a `.tcx` file, then upload it at [strava.com/upload/select](https://www.strava.com/upload/select). Works for GPS-less workouts (duration/HR when available).
+2. **Try the demo (no watch needed):** on **Sync**, use **Simulator mode** to seed temporary sample data and explore the dashboard. Turning it off removes only the simulator demo data — your synced/imported data stays intact.
+3. **Sync from the watch (Web Bluetooth):** click **Connect & sync** and grant Bluetooth permission when prompted. Data is fetched and merged into local storage (repeated syncs accumulate; they don’t wipe existing data).
+4. **Or import Gadgetbridge data:** on **Sync**, drop/select a Gadgetbridge SQLite `.db` export to import historical samples.
+5. **Back up / restore:** use **Export data (JSON)** for a full snapshot and **Import data (JSON)** to restore/merge (recommended before clearing browser data or moving devices/browsers).
+6. **Explore analytics:** Overview, Strain, Recovery, Sleep, Weekly, Training, Workouts, Journal, and VO₂ Max pages visualize metrics computed from your locally stored data.
+7. **Export a workout to Strava:** open **Workouts**, click **Export TCX** on a workout to download a `.tcx` file, then upload it at [strava.com/upload/select](https://www.strava.com/upload/select). Works for GPS-less workouts (duration/HR when available).
 
 ## Important: using with the official Nothing/CMF app
 
@@ -200,4 +202,4 @@ This is an independent, community, reverse-engineering project and is **not affi
 
 ## License
 
-No `LICENSE` file is currently included in this repository. Until a license is added, default copyright applies (reuse and contribution terms are unclear). Adding an explicit open-source license is important for community contributions — maintainers should add one (e.g. MIT or Apache-2.0) so others can confidently use and contribute to the project.
+This project is licensed under the [MIT License](LICENSE). (Added so contributors and users can confidently use and contribute to the project.)
