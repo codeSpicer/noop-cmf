@@ -9,6 +9,8 @@ import type { SleepView } from '@/lib/db-analytics';
 import { loadSleepConsistency } from '@/lib/sleep-consistency';
 import { loadSleepCoach, type SleepCoachView } from '@/lib/sleep-coach';
 import { errorMessage } from '@/lib/errors';
+import { isDemoMode } from '@/lib/demo-provider';
+import { enableSimulatorMode } from '@/lib/simulator-mode';
 
 export default function SleepPage() {
   const [view, setView] = useState<SleepView | null>(null);
@@ -22,6 +24,9 @@ export default function SleepPage() {
     async function load(): Promise<void> {
       try {
         const db = getDatabase();
+        if (typeof window !== 'undefined' && isDemoMode(window.location.search)) {
+          await enableSimulatorMode('endurance-runner', db);
+        }
         const [data, c, coachData] = await Promise.all([loadSleep(db), loadSleepConsistency(db), loadSleepCoach(db)]);
         if (cancelled) return;
         setView(data);

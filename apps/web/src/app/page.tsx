@@ -17,6 +17,8 @@ import { loadStrainTrend } from '@/lib/strain-trend';
 import { loadStressTrend } from '@/lib/stress-trend';
 import { computeEnergyScore } from '@noop-cmf/physio-engine';
 import { errorMessage } from '@/lib/errors';
+import { isDemoMode } from '@/lib/demo-provider';
+import { enableSimulatorMode } from '@/lib/simulator-mode';
 
 const RECOVERY_TIER_COLORS: Record<RecoveryColorTier, string> = {
   green: 'var(--color-recovery)',
@@ -37,6 +39,9 @@ export default function OverviewPage() {
     async function load(): Promise<void> {
       try {
         const db = getDatabase();
+        if (typeof window !== 'undefined' && isDemoMode(window.location.search)) {
+          await enableSimulatorMode('endurance-runner', db);
+        }
         const [data, hm, tr, st] = await Promise.all([
           loadOverview(db),
           loadHealthMetrics(db),

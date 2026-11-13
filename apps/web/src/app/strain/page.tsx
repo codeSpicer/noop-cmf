@@ -12,6 +12,8 @@ import { loadWorkoutTrimp } from '@/lib/workout-trimp';
 import { loadIntensityMinutes } from '@/lib/intensity-minutes';
 import type { WorkoutTrimp } from '@/lib/workout-trimp';
 import { errorMessage } from '@/lib/errors';
+import { isDemoMode } from '@/lib/demo-provider';
+import { enableSimulatorMode } from '@/lib/simulator-mode';
 
 const ZONE_COLORS: Record<HrZone, string> = {
   1: 'var(--color-muted)',
@@ -34,6 +36,9 @@ export default function StrainPage() {
     async function load(): Promise<void> {
       try {
         const db = getDatabase();
+        if (typeof window !== 'undefined' && isDemoMode(window.location.search)) {
+          await enableSimulatorMode('endurance-runner', db);
+        }
         const [data, tr, wt, im] = await Promise.all([
           loadStrain(db),
           loadStrainTrend(db, 7),

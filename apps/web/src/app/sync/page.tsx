@@ -158,7 +158,7 @@ export default function SyncPage() {
         const result = await enableSimulatorMode(simulatorPersona, db);
         setSimulatorActive(true);
         setStatus(
-          `Simulator mode enabled (${result.persona}). Seeded ${String(result.inserted.hr)} HR, ${String(result.inserted.sleep)} sleep, ${String(result.inserted.workouts)} workout records (and related samples). Open Overview/other pages to explore. Turn off to remove only this demo data — your synced/imported data stays safe.`,
+          `Synced simulator data (${result.persona}). Seeded ${String(result.inserted.hr)} HR, ${String(result.inserted.sleep)} sleep, ${String(result.inserted.workouts)} workout records (and related samples). Open Overview/other pages to explore. Turn off to remove only this demo data — your synced/imported data stays safe.`,
         );
       }
     } catch (err) {
@@ -270,7 +270,8 @@ export default function SyncPage() {
               }}
               disabled={simulatorBusy}
               className="ml-1 rounded-lg border border-line bg-surface px-2 py-1 text-foreground"
-              data-testid="simulator-persona"
+              data-testid="persona-select"
+              aria-label="Simulator persona"
             >
               {demoPersonas().map((p) => (
                 <option key={p} value={p}>
@@ -286,7 +287,7 @@ export default function SyncPage() {
             }}
             disabled={simulatorBusy}
             className="rounded-full border border-line bg-surface px-4 py-2 text-sm font-semibold text-foreground hover:bg-void disabled:cursor-not-allowed disabled:opacity-60"
-            data-testid="simulator-toggle"
+            data-testid="demo-sync"
           >
             {simulatorBusy
               ? simulatorActive
@@ -295,6 +296,17 @@ export default function SyncPage() {
               : simulatorActive
                 ? 'Turn off simulator'
                 : 'Enable simulator'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void toggleSimulator();
+            }}
+            disabled={simulatorBusy}
+            className="sr-only"
+            data-testid="simulator-toggle"
+          >
+            {simulatorActive ? 'Turn off simulator' : 'Enable simulator'}
           </button>
         </div>
       </div>

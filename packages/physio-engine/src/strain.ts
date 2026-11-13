@@ -73,7 +73,10 @@ function sampleDtMinutes(sorted: readonly HrSampleInput[]): readonly number[] {
   }
   const diffs: number[] = [];
   for (let i = 1; i < sorted.length; i += 1) {
-    const d = sorted[i]!.timestamp - sorted[i - 1]!.timestamp;
+    const current = sorted[i];
+    const previous = sorted[i - 1];
+    if (!current || !previous) continue;
+    const d = current.timestamp - previous.timestamp;
     if (d > 0) {
       diffs.push(d);
     }
@@ -85,9 +88,15 @@ function sampleDtMinutes(sorted: readonly HrSampleInput[]): readonly number[] {
   const medianMs = ordered[Math.floor(ordered.length / 2)] ?? 60_000;
   const repMs = clamp(medianMs, MIN_SAMPLE_INTERVAL_MS, MAX_SAMPLE_INTERVAL_MS);
   const gapCapMs = Math.min(repMs * MAX_GAP_CAP_MULTIPLIER, 600_000);
-  const result: number[] = new Array(sorted.length);
+  const result = new Array<number>(sorted.length);
   for (let i = 0; i < sorted.length - 1; i += 1) {
-    const d = sorted[i + 1]!.timestamp - sorted[i]!.timestamp;
+    const current = sorted[i];
+    const next = sorted[i + 1];
+    if (!current || !next) {
+      result[i] = repMs / 60_000;
+      continue;
+    }
+    const d = next.timestamp - current.timestamp;
     const ms = d > 0 ? Math.min(d, gapCapMs) : repMs;
     result[i] = ms / 60_000;
   }
@@ -164,8 +173,9 @@ export function banisterTrimp(
   const dts = dtMinutes === undefined ? sampleDtMinutes(sorted) : null;
   let trimp = 0;
   for (let i = 0; i < sorted.length; i += 1) {
-    const sample = sorted[i]!;
-    const dt = dtMinutes ?? dts![i]!;
+    const sample = sorted[i];
+    if (!sample) continue;
+    const dt = dtMinutes ?? dts?.[i] ?? 0;
     if (!(dt > 0)) {
       continue;
     }
@@ -208,8 +218,9 @@ export function computeDayStrain(
   const dts = sampleDtMinutes(sorted);
   let trimp = 0;
   for (let i = 0; i < sorted.length; i += 1) {
-    const sample = sorted[i]!;
-    const dt = dts[i]!;
+    const sample = sorted[i];
+    const dt = dts[i] ?? 0;
+    if (!sample) continue;
     zoneMinutes[classifyHrZone(sample.bpm, rhr, hrMax)] += dt;
     if (!(dt > 0)) {
       continue;
@@ -254,8 +265,9 @@ export function computeIntensityMinutes(
   let moderate = 0;
   let vigorous = 0;
   for (let i = 0; i < sorted.length; i += 1) {
-    const sample = sorted[i]!;
-    const dt = dts[i]!;
+    const sample = sorted[i];
+    const dt = dts[i] ?? 0;
+    if (!sample) continue;
     const zone = classifyHrZone(sample.bpm, rhr, hrMax);
     if (zone >= 2) {
       moderate += dt;
