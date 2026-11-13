@@ -12,15 +12,15 @@ The goal is to give CMF watch owners deeper, private, own-your-data analytics (i
 
 ## Screenshots
 
-> These are placeholders — replace them with real screenshots/photos of your dashboard in [`docs/screenshots/`](docs/screenshots/) (same filenames, `.svg` or `.png`). PRs with real screenshots are especially welcome.
+> Sample dashboard views (captured in simulator/demo mode).
 
 | Overview                                                                                     | Recovery                                                               | Sleep                                                                        |
 | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| ![Overview dashboard showing recovery, strain, and readiness](docs/screenshots/overview.svg) | ![Recovery score, RHR, and eHRV trends](docs/screenshots/recovery.svg) | ![Sleep hypnogram, performance, and sleep coach](docs/screenshots/sleep.svg) |
+| ![Overview dashboard showing recovery, strain, and readiness](docs/screenshots/overview.png) | ![Recovery score, RHR, and eHRV trends](docs/screenshots/recovery.png) | ![Sleep hypnogram, performance, and sleep coach](docs/screenshots/sleep.png) |
 
 | Strain & Workouts                                                                                | Weekly & Training                                                                       | Sync & Import                                                                          |
 | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| ![Daily strain, HR zones, and workout log with TCX export](docs/screenshots/strain-workouts.svg) | ![Weekly summary and training load (ACWR/status)](docs/screenshots/weekly-training.svg) | ![Web Bluetooth sync, Gadgetbridge import, and JSON backup](docs/screenshots/sync.svg) |
+| ![Daily strain, HR zones, and workout log with TCX export](docs/screenshots/strain-workouts.png) | ![Weekly summary and training load (ACWR/status)](docs/screenshots/weekly-training.png) | ![Web Bluetooth sync, Gadgetbridge import, and JSON backup](docs/screenshots/sync.png) |
 
 ## What this project does
 
