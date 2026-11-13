@@ -131,8 +131,8 @@ export default function StrainPage() {
                     <p>
                       {w.durationMin.toFixed(1)} min · TRIMP {w.trimp.toFixed(1)} · strain{' '}
                       {w.strain.toFixed(1)}
-                      {w.avgHeartRate !== null ? ` · avg ${w.avgHeartRate} bpm` : ''}
-                      {w.maxHeartRate !== null ? ` · max ${w.maxHeartRate} bpm` : ''}
+                      {w.avgHeartRate !== null ? ` · avg ${String(w.avgHeartRate)} bpm` : ''}
+                      {w.maxHeartRate !== null ? ` · max ${String(w.maxHeartRate)} bpm` : ''}
                       {w.hrSamples > 0 ? ` · ${String(w.hrSamples)} HR samples` : ' · no HR samples in window'}
                     </p>
                   </li>

@@ -74,7 +74,7 @@ export default function ProbePage() {
               capturedAt: Date.now(),
             });
             if (decoded.ok && decoded.value.length > 0) {
-              await db.workouts.bulkPut(decoded.value as never);
+              await db.workouts.bulkPut([...decoded.value]);
               append(`[frame] saved ${String(decoded.value.length)} workout(s) to DB`);
             }
           } catch (e) {

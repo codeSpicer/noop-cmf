@@ -89,11 +89,11 @@ export default function WorkoutsPage() {
               <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
                 <div>
                   <dt className="text-muted">Avg HR</dt>
-                  <dd className="text-foreground">{w.avgHeartRate !== null ? `${w.avgHeartRate} bpm` : '—'}</dd>
+                  <dd className="text-foreground">{w.avgHeartRate !== null ? `${String(w.avgHeartRate)} bpm` : '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-muted">Max HR</dt>
-                  <dd className="text-foreground">{w.maxHeartRate !== null ? `${w.maxHeartRate} bpm` : '—'}</dd>
+                  <dd className="text-foreground">{w.maxHeartRate !== null ? `${String(w.maxHeartRate)} bpm` : '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-muted">HR samples</dt>
