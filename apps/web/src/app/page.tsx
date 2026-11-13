@@ -7,6 +7,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Sparkline } from '@/components/charts/Sparkline';
 import { ReadinessChip } from '@/components/ReadinessChip';
 import { HealthMonitorCard } from '@/components/HealthMonitorCard';
+import { CalibrationNotice } from '@/components/CalibrationNotice';
 import { getDatabase } from '@/db/database';
 import { loadOverview } from '@/lib/db-analytics';
 import type { OverviewView } from '@/lib/db-analytics';
@@ -69,6 +70,7 @@ export default function OverviewPage() {
   }
   return (
     <section aria-label="Overview" className="space-y-6">
+      <CalibrationNotice show={view.historyDays < 7 || view.overnightHrSamples < 3} />
       <header>
         <p className="text-sm text-muted">Today</p>
         <h1 className="text-2xl font-semibold text-foreground">Overview</h1>

@@ -5,6 +5,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { BaselineBandChart } from '@/components/charts/BaselineBandChart';
 import { Sparkline } from '@/components/charts/Sparkline';
 import { ReadinessCard } from '@/components/ReadinessCard';
+import { CalibrationNotice } from '@/components/CalibrationNotice';
 import { getDatabase } from '@/db/database';
 import { loadRecovery, loadRhrTrend } from '@/lib/db-analytics';
 import type { RecoveryView } from '@/lib/db-analytics';
@@ -76,6 +77,7 @@ export default function RecoveryPage() {
   }
   return (
     <section aria-label="Recovery" className="space-y-4">
+      <CalibrationNotice show={view.historyDays < 7 || view.overnightHrSamples < 3} />
       <header>
         <p className="text-sm text-muted">Readiness</p>
         <h1 className="text-2xl font-semibold text-foreground">Recovery</h1>

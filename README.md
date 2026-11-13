@@ -6,6 +6,8 @@ noop-cmf is an open-source TypeScript monorepo and Next.js PWA that syncs data f
 
 The goal is to give CMF watch owners deeper, private, own-your-data analytics (in the spirit of Whoop-style insights) without vendor lock-in, and to grow this into a community-driven open-source project. If you have a CMF watch, try it, break it, and help make it better.
 
+**Try it now:** [noop-cmf-wheat.vercel.app](https://noop-cmf-wheat.vercel.app/) — open in a **Chromium-based browser** (desktop or Android) for Web Bluetooth sync. (iOS browsers don’t support Web Bluetooth; see [compatibility](#supported-devices--compatibility) and [using with the official Nothing/CMF app](#important-using-with-the-official-nothingcmf-app).)
+
 > **Status:** active development / early but usable. Core sync, analytics, backup, and the PWA work; workout decoding, GPS, and some protocol details are still being validated and improved against real hardware. Contributions and real-device feedback are very welcome.
 
 ## Screenshots
@@ -94,7 +96,10 @@ noop-cmf/
 
 ## Getting started
 
-### Prerequisites
+### Try the hosted app (no install)
+You can try noop-cmf without setting up a dev environment at **[noop-cmf-wheat.vercel.app](https://noop-cmf-wheat.vercel.app/)**. Use a **Chromium-based browser** (Chrome/Edge on desktop or Android) for Web Bluetooth sync. Your data stays in your browser’s local storage (IndexedDB) — the hosted app has no backend or telemetry. You can also import Gadgetbridge `.db` exports or JSON backups there.
+
+### Prerequisites (for local development)
 - **Node.js** >= 20
 - **pnpm** >= 9 (repo uses `pnpm@11.x` via `packageManager`)
 - A **Chromium-based browser** (desktop or Android) for Web Bluetooth sync, or a Gadgetbridge `.db` export
