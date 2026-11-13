@@ -112,6 +112,7 @@ export default function RecoveryPage() {
       {rhrTrend.length >= 2 ? (
         <ErrorBoundary>
           <div className="rounded-2xl border border-line bg-card p-4">
+            <p className="mb-2 text-xs text-muted">RHR baseline band (7-day)</p>
             <BaselineBandChart
               values={rhrTrend}
               mean={rhrTrend.reduce((a, b) => a + b, 0) / rhrTrend.length}
@@ -125,6 +126,7 @@ export default function RecoveryPage() {
       {ehrvTrend.length >= 2 ? (
         <ErrorBoundary>
           <div className="rounded-2xl border border-line bg-card p-4">
+            <p className="mb-2 text-xs text-muted">eHRV baseline band (7-day)</p>
             <BaselineBandChart
               values={ehrvTrend}
               mean={ehrvTrend.reduce((a, b) => a + b, 0) / ehrvTrend.length}

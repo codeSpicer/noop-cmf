@@ -16,21 +16,12 @@ describe('SyncPage', () => {
     await screen.findByText(/Restored/i, {}, { timeout: 5000 });
   }, 10000);
 
-  it('offers the dropzone and sync buttons', () => {
+  it('offers the dropzone and sync actions', () => {
     window.history.replaceState({}, '', '/sync');
     render(<SyncPage />);
     expect(screen.getByTestId('db-dropzone')).toBeInTheDocument();
     expect(screen.getByTestId('ble-sync')).toBeInTheDocument();
-    expect(screen.getByTestId('push-recovery')).toBeInTheDocument();
   });
-
-  it('pushes recovery to the watch', async () => {
-    const user = userEvent.setup();
-    window.history.replaceState({}, '', '/sync');
-    render(<SyncPage />);
-    await user.click(screen.getByTestId('push-recovery'));
-    await screen.findByText('Recovery pushed to watch.', {}, { timeout: 30000 });
-  }, 40000);
 
   it('attempts a BLE sync without bluetooth', async () => {
     const user = userEvent.setup();

@@ -2,14 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { CmfBleProvider, GadgetbridgeSqliteProvider, WebBleTransport, getNavigatorBluetooth, loadSqlJs } from '@noop-cmf/cmf-ble';
-import {
-  EpochMsSchema,
-  MillisecondsSchema,
-  RecoveryPercentSchema,
-  StrainScoreSchema,
-} from '@noop-cmf/types';
+import { EpochMsSchema } from '@noop-cmf/types';
 import { getDatabase } from '@/db/database';
-import { createDemoProvider } from '@/lib/demo-provider';
 import { errorMessage } from '@/lib/errors';
 import { importAll } from '@/lib/import';
 import { loadAuthKey, saveAuthKey } from '@/lib/ble-auth-store';
@@ -73,21 +67,6 @@ export default function SyncPage() {
       );
     } catch (err) {
       setStatus(`JSON import failed: ${errorMessage(err, 'unknown error')}`);
-    }
-  }
-
-  async function pushRecovery(): Promise<void> {
-    setStatus('Pushing recovery to watch…');
-    try {
-      const provider = await createDemoProvider('?demo=true');
-      const result = await provider.pushRecoveryNotification({
-        recovery: RecoveryPercentSchema.parse(72),
-        ehrv: MillisecondsSchema.parse(110),
-        strainTarget: StrainScoreSchema.parse(14.3),
-      });
-      setStatus(result.ok ? 'Recovery pushed to watch.' : 'Push failed.');
-    } catch (err) {
-      setStatus(`Push failed: ${errorMessage(err, 'unknown error')}`);
     }
   }
 
@@ -190,16 +169,6 @@ export default function SyncPage() {
           />
         </label>
       </div>
-      <button
-        type="button"
-        onClick={() => {
-          void pushRecovery();
-        }}
-        className="rounded-full bg-recovery px-5 py-2 text-sm font-semibold text-[#0e0d0b] hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-recovery"
-        data-testid="push-recovery"
-      >
-        Push Recovery to Watch
-      </button>
       <button
         type="button"
         onClick={() => {

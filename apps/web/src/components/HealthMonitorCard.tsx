@@ -22,10 +22,10 @@ export function HealthMonitorCard({ metrics, loading = false }: HealthMonitorCar
   ];
   return (
     <div data-testid="health-monitor" className="rounded-2xl border border-line bg-card p-6">
-      <p className="text-sm text-muted mb-3">Health monitor</p>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <p className="mb-3 text-sm text-muted">Health monitor</p>
+      <div className="grid grid-cols-2 gap-3">
         {tiles.map((tile) => (
-          <div key={tile.testId} className="rounded-lg bg-void p-3 text-center">
+          <div key={tile.testId} className="min-w-0 rounded-lg bg-void p-3 text-center">
             <p data-testid={tile.testId} className="text-lg font-semibold text-foreground">
               {tile.value}
             </p>

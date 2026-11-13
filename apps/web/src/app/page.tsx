@@ -128,13 +128,12 @@ export default function OverviewPage() {
           </div>
         </ErrorBoundary>
         <ErrorBoundary>
-          <div className="rounded-2xl border border-line bg-card p-6">
-            <HealthMonitorCard metrics={health} />
-          </div>
+          <HealthMonitorCard metrics={health} />
         </ErrorBoundary>
       </div>
-       <ErrorBoundary>
+      <ErrorBoundary>
         <div className="rounded-2xl border border-line bg-card p-4">
+          <p className="mb-2 text-xs text-muted">7-day strain trend</p>
           <Sparkline
             values={trend.length > 0 ? trend : [view.strain]}
             color="var(--color-strain)"
