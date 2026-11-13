@@ -79,7 +79,7 @@ export default function OverviewPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <ErrorBoundary>
           <div className="lg:col-span-2 rounded-2xl border border-line bg-card p-6">
-            <div className="flex flex-wrap items-center gap-6">
+            <div className="flex flex-col items-center gap-6 sm:flex-row sm:flex-wrap sm:justify-start">
               <GaugeRing
                 value={view.recovery}
                 max={99}
@@ -89,7 +89,7 @@ export default function OverviewPage() {
                 suffix="%"
                 testId="recovery-ring"
               />
-              <div className="flex flex-wrap items-center gap-6">
+              <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
                 <GaugeRing
                   value={view.strain}
                   max={21}

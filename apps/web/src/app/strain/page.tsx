@@ -86,7 +86,7 @@ export default function StrainPage() {
           </p>
           {intensity ? (
             <p data-testid="intensity-minutes" className="text-muted">
-              Intensity minutes: <span className="text-foreground">{intensity.moderate} moderate, {intensity.vigorous} vigorous</span>
+              Intensity minutes: <span className="text-foreground">{Math.round(intensity.moderate)} moderate, {Math.round(intensity.vigorous)} vigorous</span>
             </p>
           ) : null}
           <div

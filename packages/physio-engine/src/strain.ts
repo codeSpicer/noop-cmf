@@ -49,10 +49,50 @@ export const STRAIN_CURVE_DIVISOR = 18;
 /** Samples per aggregation bin used by the strain integrator. */
 export const SAMPLES_PER_MINUTE = 1;
 
+const MIN_SAMPLE_INTERVAL_MS = 5_000;
+const MAX_SAMPLE_INTERVAL_MS = 300_000;
+const MAX_GAP_CAP_MULTIPLIER = 4;
+const DEFAULT_SAMPLE_DT_MINUTES = 1;
+
 /** Single timestamped heart-rate observation for strain integration. */
 export interface HrSampleInput {
   readonly timestamp: HrSample['timestamp'];
   readonly bpm: HrSample['bpm'];
+}
+
+function toSortedSamples(samples: readonly HrSampleInput[]): HrSampleInput[] {
+  return [...samples].sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function sampleDtMinutes(sorted: readonly HrSampleInput[]): readonly number[] {
+  if (sorted.length === 0) {
+    return [];
+  }
+  if (sorted.length === 1) {
+    return [DEFAULT_SAMPLE_DT_MINUTES];
+  }
+  const diffs: number[] = [];
+  for (let i = 1; i < sorted.length; i += 1) {
+    const d = sorted[i]!.timestamp - sorted[i - 1]!.timestamp;
+    if (d > 0) {
+      diffs.push(d);
+    }
+  }
+  if (diffs.length === 0) {
+    return sorted.map(() => DEFAULT_SAMPLE_DT_MINUTES);
+  }
+  const ordered = [...diffs].sort((a, b) => a - b);
+  const medianMs = ordered[Math.floor(ordered.length / 2)] ?? 60_000;
+  const repMs = clamp(medianMs, MIN_SAMPLE_INTERVAL_MS, MAX_SAMPLE_INTERVAL_MS);
+  const gapCapMs = Math.min(repMs * MAX_GAP_CAP_MULTIPLIER, 600_000);
+  const result: number[] = new Array(sorted.length);
+  for (let i = 0; i < sorted.length - 1; i += 1) {
+    const d = sorted[i + 1]!.timestamp - sorted[i]!.timestamp;
+    const ms = d > 0 ? Math.min(d, gapCapMs) : repMs;
+    result[i] = ms / 60_000;
+  }
+  result[sorted.length - 1] = repMs / 60_000;
+  return result;
 }
 
 /**
@@ -104,24 +144,36 @@ export function classifyHrZone(hr: number, rhr: number, hrMax: number): HrZone {
 }
 
 /**
- * Exponential Banister TRIMP over one-minute samples (spec equation [B]).
+ * Exponential Banister TRIMP over heart-rate samples (spec equation [B]).
  *
- * Samples below {@link TRIMP_MIN_HR_RATIO} contribute zero. `dtMinutes` is
- * the per-sample duration in minutes (1 for 1-minute samples).
+ * Samples below {@link TRIMP_MIN_HR_RATIO} contribute zero. When `dtMinutes`
+ * is omitted, per-sample duration is inferred from sample timestamps (capped to
+ * avoid counting large gaps as continuous exertion). Pass `dtMinutes` to apply a
+ * uniform duration to every sample.
  */
 export function banisterTrimp(
   samples: readonly HrSampleInput[],
   rhr: number,
   hrMax: number,
-  dtMinutes = SAMPLES_PER_MINUTE,
+  dtMinutes?: number,
 ): number {
+  if (samples.length === 0) {
+    return 0;
+  }
+  const sorted = toSortedSamples(samples);
+  const dts = dtMinutes === undefined ? sampleDtMinutes(sorted) : null;
   let trimp = 0;
-  for (const sample of samples) {
+  for (let i = 0; i < sorted.length; i += 1) {
+    const sample = sorted[i]!;
+    const dt = dtMinutes ?? dts![i]!;
+    if (!(dt > 0)) {
+      continue;
+    }
     const ratio = hrRatio(sample.bpm, rhr, hrMax);
     if (ratio < TRIMP_MIN_HR_RATIO) {
       continue;
     }
-    trimp += dtMinutes * ratio * TRIMP_SCALING_FACTOR * Math.exp(TRIMP_EXPONENT_FACTOR * ratio);
+    trimp += dt * ratio * TRIMP_SCALING_FACTOR * Math.exp(TRIMP_EXPONENT_FACTOR * ratio);
   }
   return trimp;
 }
@@ -136,6 +188,9 @@ export interface StrainBreakdown {
 /**
  * Logarithmic day strain in `[0.0, 21.0]` (spec equation [C]) plus the
  * contributing TRIMP and per-zone minute breakdown.
+ *
+ * Per-sample duration is inferred from timestamps so dense heart-rate streams
+ * are weighted by elapsed time rather than sample count.
  */
 export function computeDayStrain(
   samples: readonly HrSampleInput[],
@@ -145,10 +200,29 @@ export function computeDayStrain(
   divisor: number = STRAIN_CURVE_DIVISOR,
 ): StrainBreakdown {
   const zoneMinutes: Record<HrZone, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  for (const sample of samples) {
-    zoneMinutes[classifyHrZone(sample.bpm, rhr, hrMax)] += 1;
+  if (samples.length === 0) {
+    const strain = 0 as StrainScore;
+    return { strain, trimp: 0, zoneMinutes };
   }
-  const trimp = banisterTrimp(samples, rhr, hrMax);
+  const sorted = toSortedSamples(samples);
+  const dts = sampleDtMinutes(sorted);
+  let trimp = 0;
+  for (let i = 0; i < sorted.length; i += 1) {
+    const sample = sorted[i]!;
+    const dt = dts[i]!;
+    zoneMinutes[classifyHrZone(sample.bpm, rhr, hrMax)] += dt;
+    if (!(dt > 0)) {
+      continue;
+    }
+    const ratio = hrRatio(sample.bpm, rhr, hrMax);
+    if (ratio < TRIMP_MIN_HR_RATIO) {
+      continue;
+    }
+    trimp += dt * ratio * TRIMP_SCALING_FACTOR * Math.exp(TRIMP_EXPONENT_FACTOR * ratio);
+  }
+  for (const zone of [1, 2, 3, 4, 5] as const) {
+    zoneMinutes[zone] = Math.round(zoneMinutes[zone] * 100) / 100;
+  }
   const raw = gain * Math.log(1 + trimp / divisor);
   const rounded = Math.round(raw * 10) / 10;
   const strain = clamp(rounded, 0, STRAIN_SCORE_MAX) as StrainScore;
@@ -163,20 +237,37 @@ export interface IntensityMinutes {
 
 /**
  * Tally moderate (zone 2+) and vigorous (zone 4+) minutes from HR samples.
+ *
+ * Per-sample duration is inferred from timestamps so dense streams are weighted
+ * by elapsed time rather than sample count.
  */
 export function computeIntensityMinutes(
   samples: readonly HrSampleInput[],
   rhr: number,
   hrMax: number,
 ): IntensityMinutes {
+  if (samples.length === 0) {
+    return { moderate: 0, vigorous: 0 };
+  }
+  const sorted = toSortedSamples(samples);
+  const dts = sampleDtMinutes(sorted);
   let moderate = 0;
   let vigorous = 0;
-  for (const sample of samples) {
+  for (let i = 0; i < sorted.length; i += 1) {
+    const sample = sorted[i]!;
+    const dt = dts[i]!;
     const zone = classifyHrZone(sample.bpm, rhr, hrMax);
-    if (zone >= 2) moderate += 1;
-    if (zone >= 4) vigorous += 1;
+    if (zone >= 2) {
+      moderate += dt;
+    }
+    if (zone >= 4) {
+      vigorous += dt;
+    }
   }
-  return { moderate, vigorous };
+  return {
+    moderate: Math.round(moderate * 100) / 100,
+    vigorous: Math.round(vigorous * 100) / 100,
+  };
 }
 
 /** Validate resting/max heart-rate baselines used across the engine. */
