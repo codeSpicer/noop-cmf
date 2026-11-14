@@ -17,10 +17,11 @@ import {
 import { getRecoveryTier } from '@noop-cmf/types';
 import type { RecoveryColorTier } from '@noop-cmf/types';
 import { computeReadinessFromData } from './readiness';
+import { loadResolvedUserProfile } from './user-profile';
+import { computeMainSleep } from './sleep-sessions';
+import type { SleepSession } from './sleep-sessions';
 
 const DAY_MS = 86_400_000;
-const BASELINE_RHR = 50;
-const BASELINE_HR_MAX = 190;
 const MIN_OVERNIGHT_HR_SAMPLES = 3;
 
 export async function hasData(db: NoopCmfDatabase = getDatabase()): Promise<boolean> {
@@ -56,6 +57,17 @@ function inRange<T extends { timestamp?: number; start?: number }>(
   });
 }
 
+export interface SleepView {
+  readonly segments: readonly SleepSegment[];
+  readonly need: number;
+  readonly summary: ReturnType<typeof analyzeSleep>;
+  readonly sessionStart: number | null;
+  readonly sessionEnd: number | null;
+  readonly otherSessionsCount: number;
+  readonly notes: readonly string[];
+  readonly allSessionsInWindow: readonly SleepSession[];
+}
+
 export interface OverviewView {
   readonly strain: number;
   readonly recovery: number;
@@ -75,19 +87,21 @@ export async function loadOverview(
 ): Promise<OverviewView | null> {
   const range = await latestDayRange(db);
   if (!range) return null;
-  const [hrRows, sleepRows, workoutRows, stressRows] = await Promise.all([
+  const [hrRows, sleepRows, workoutRows, stressRows, profile] = await Promise.all([
     db.hrSamples.toArray(),
     db.sleepSegments.toArray(),
     db.workouts.toArray(),
     db.stressSamples.toArray(),
+    loadResolvedUserProfile(db),
   ]);
   const dayHr = inRange(hrRows, range.start, range.end);
-  const daySleep = sleepRows.filter((s) => s.start < range.end && s.end > range.start);
+  const mainSleep = computeMainSleep(sleepRows, range.end);
+  const daySleep = mainSleep.session?.segments ?? [];
   if (dayHr.length === 0 && daySleep.length === 0) return null;
 
-  const breakdown = computeDayStrain(dayHr, BASELINE_RHR, BASELINE_HR_MAX);
+  const breakdown = computeDayStrain(dayHr, profile.restingHeartRate, profile.maxHeartRate);
   const summary = analyzeSleep(daySleep);
-  const overnight = computeOvernightMetrics(dayHr, stressRows, daySleep, BASELINE_RHR);
+  const overnight = computeOvernightMetrics(dayHr, stressRows, daySleep, profile.restingHeartRate);
   const history: { ehrv: number; restingHeartRate: number }[] = [];
   for (let i = 1; i <= 30; i += 1) {
     const dEnd = range.end - i * DAY_MS;
@@ -96,7 +110,7 @@ export async function loadOverview(
     if (dHr.length === 0) continue;
     const dSleep = sleepRows.filter((s) => s.start < dEnd && s.end > dStart);
     const dStress = stressRows.filter((s) => s.timestamp >= dStart && s.timestamp < dEnd);
-    const dOvernight = computeOvernightMetrics(dHr, dStress, dSleep, BASELINE_RHR);
+    const dOvernight = computeOvernightMetrics(dHr, dStress, dSleep, profile.restingHeartRate);
     if (dOvernight.hrSampleCount < MIN_OVERNIGHT_HR_SAMPLES) continue;
     history.push({ ehrv: dOvernight.ehrv, restingHeartRate: dOvernight.restingHeartRate });
   }
@@ -115,6 +129,8 @@ export async function loadOverview(
     workouts: workoutRows.filter((w) => w.end >= weekStart && w.start < range.end),
     now: EpochMsSchema.parse(range.end),
     recoveryScore: recovery,
+    restingHeartRate: profile.restingHeartRate,
+    maxHeartRate: profile.maxHeartRate,
   });
 
   return {
@@ -149,17 +165,19 @@ export async function loadRecovery(
 ): Promise<RecoveryView | null> {
   const range = await latestDayRange(db);
   if (!range) return null;
-  const [hrRows, sleepRows, stressRows, workoutRows] = await Promise.all([
+  const [hrRows, sleepRows, stressRows, workoutRows, profile] = await Promise.all([
     db.hrSamples.toArray(),
     db.sleepSegments.toArray(),
     db.stressSamples.toArray(),
     db.workouts.toArray(),
+    loadResolvedUserProfile(db),
   ]);
   const dayHr = inRange(hrRows, range.start, range.end);
-  const daySleep = sleepRows.filter((s) => s.start < range.end && s.end > range.start);
+  const mainSleep = computeMainSleep(sleepRows, range.end);
+  const daySleep = mainSleep.session?.segments ?? [];
   if (dayHr.length === 0) return null;
 
-  const overnight = computeOvernightMetrics(dayHr, stressRows, daySleep, BASELINE_RHR);
+  const overnight = computeOvernightMetrics(dayHr, stressRows, daySleep, profile.restingHeartRate);
   const summary = analyzeSleep(daySleep);
   // Build rolling history from prior days for a meaningful recovery score.
   const history: { ehrv: number; restingHeartRate: number }[] = [];
@@ -170,7 +188,7 @@ export async function loadRecovery(
     if (dHr.length === 0) continue;
     const dSleep = sleepRows.filter((s) => s.start < dEnd && s.end > dStart);
     const dStress = stressRows.filter((s) => s.timestamp >= dStart && s.timestamp < dEnd);
-    const dOvernight = computeOvernightMetrics(dHr, dStress, dSleep, BASELINE_RHR);
+    const dOvernight = computeOvernightMetrics(dHr, dStress, dSleep, profile.restingHeartRate);
     if (dOvernight.hrSampleCount < MIN_OVERNIGHT_HR_SAMPLES) continue;
     history.push({
       ehrv: dOvernight.ehrv,
@@ -192,6 +210,8 @@ export async function loadRecovery(
     workouts: workoutRows.filter((w) => w.end >= weekStart && w.start < range.end),
     now: EpochMsSchema.parse(range.end),
     recoveryScore: recovery,
+    restingHeartRate: profile.restingHeartRate,
+    maxHeartRate: profile.maxHeartRate,
   });
 
   return {
@@ -207,24 +227,37 @@ export async function loadRecovery(
   };
 }
 
-export interface SleepView {
-  readonly segments: readonly SleepSegment[];
-  readonly need: number;
-  readonly summary: ReturnType<typeof analyzeSleep>;
-}
-
 export async function loadSleep(
   db: NoopCmfDatabase = getDatabase(),
 ): Promise<SleepView | null> {
   const range = await latestDayRange(db);
   if (!range) return null;
-  const sleepRows = await db.sleepSegments.toArray();
-  const daySleep = sleepRows.filter((s) => s.start < range.end && s.end > range.start);
-  if (daySleep.length === 0) return null;
-  const summary = analyzeSleep(daySleep);
+  const [sleepRows, hrRows, profile] = await Promise.all([
+    db.sleepSegments.toArray(),
+    db.hrSamples.toArray(),
+    loadResolvedUserProfile(db),
+  ]);
+  const main = computeMainSleep(sleepRows, range.end);
+  if (!main.session) return null;
+  const segments = main.session.segments;
+  const summary = analyzeSleep(segments);
+
+  // Estimate today's strain for sleep need (strain factor in sleep-need model).
+  const dayHr = inRange(hrRows, range.start, range.end);
+  const strainToday = computeDayStrain(dayHr, profile.restingHeartRate, profile.maxHeartRate).strain;
   const debt = computeSleepDebt(0, 450, summary.totalSleepMinutes);
-  const need = computeSleepNeedTonight(10, debt);
-  return { segments: daySleep, need, summary };
+  const need = computeSleepNeedTonight(strainToday, debt);
+
+  return {
+    segments,
+    need,
+    summary,
+    sessionStart: main.session.start,
+    sessionEnd: main.session.end,
+    otherSessionsCount: main.otherSessionsCount,
+    notes: main.notes,
+    allSessionsInWindow: main.allSessionsInWindow,
+  };
 }
 
 export interface StrainView {
@@ -239,10 +272,13 @@ export async function loadStrain(
 ): Promise<StrainView | null> {
   const range = await latestDayRange(db);
   if (!range) return null;
-  const hrRows = await db.hrSamples.toArray();
+  const [hrRows, profile] = await Promise.all([
+    db.hrSamples.toArray(),
+    loadResolvedUserProfile(db),
+  ]);
   const dayHr = inRange(hrRows, range.start, range.end);
   if (dayHr.length === 0) return null;
-  const breakdown = computeDayStrain(dayHr, BASELINE_RHR, BASELINE_HR_MAX);
+  const breakdown = computeDayStrain(dayHr, profile.restingHeartRate, profile.maxHeartRate);
   return {
     zones: breakdown.zoneMinutes,
     trimp: breakdown.trimp,
@@ -250,8 +286,9 @@ export async function loadStrain(
     hrSamples: dayHr,
   };
 }
+
 /** Daily resting HR (10th percentile) for the last 28 days. */
-export async function loadRhrTrend(db: ReturnType<typeof getDatabase>): Promise<readonly number[]> {
+export async function loadRhrTrend(db: NoopCmfDatabase = getDatabase()): Promise<readonly number[]> {
   const hrRows = await db.hrSamples.toArray();
   if (hrRows.length === 0) return [];
   const byDay = new Map<string, number[]>();

@@ -5,10 +5,9 @@ import { getDatabase } from '@/db/database';
 import type { NoopCmfDatabase } from '@/db/database';
 import { computeDayStrain } from '@noop-cmf/physio-engine';
 import { latestDayRange } from './db-analytics';
+import { loadResolvedUserProfile } from './user-profile';
 
 const DAY_MS = 86_400_000;
-const BASELINE_RHR = 50;
-const BASELINE_HR_MAX = 190;
 
 export async function loadStrainTrend(
   db: NoopCmfDatabase = getDatabase(),
@@ -16,13 +15,16 @@ export async function loadStrainTrend(
 ): Promise<number[]> {
   const range = await latestDayRange(db);
   if (!range) return [];
-  const hrRows = await db.hrSamples.toArray();
+  const [hrRows, profile] = await Promise.all([
+    db.hrSamples.toArray(),
+    loadResolvedUserProfile(db),
+  ]);
   const result: number[] = [];
   for (let i = days - 1; i >= 0; i -= 1) {
     const end = range.end - i * DAY_MS;
     const start = end - DAY_MS;
     const dayHr = hrRows.filter((s) => s.timestamp >= start && s.timestamp < end);
-    const breakdown = computeDayStrain(dayHr, BASELINE_RHR, BASELINE_HR_MAX);
+    const breakdown = computeDayStrain(dayHr, profile.restingHeartRate, profile.maxHeartRate);
     result.push(breakdown.strain);
   }
   return result;

@@ -1,5 +1,6 @@
 import { analyzeSleep, computeDayStrain } from '@noop-cmf/physio-engine';
-import type { NoopCmfDatabase } from "@/db/database";
+import type { NoopCmfDatabase } from '@/db/database';
+import { loadResolvedUserProfile, localDayKey, sumDailySteps } from './user-profile';
 
 export interface WeeklyBucket {
   readonly weekLabel: string;
@@ -25,11 +26,12 @@ function weekKey(ts: number): string {
 }
 
 export async function loadWeeklySummary(db: NoopCmfDatabase): Promise<WeeklySummaryView | null> {
-  const [hrRows, stressRows, sleepRows, stepRows] = await Promise.all([
+  const [hrRows, stressRows, sleepRows, stepRows, profile] = await Promise.all([
     db.hrSamples.toArray(),
     db.stressSamples.toArray(),
     db.sleepSegments.toArray(),
     db.steps.toArray(),
+    loadResolvedUserProfile(db),
   ]);
   if (hrRows.length === 0) return null;
 
@@ -63,40 +65,44 @@ export async function loadWeeklySummary(db: NoopCmfDatabase): Promise<WeeklySumm
     let totalSteps = 0;
     const wearHours = data.hr.length * (5 / 60); // assume 5-min intervals
 
-    // Group HR by day for strain
+    // Group HR by local day for strain
     const byDay = new Map<string, typeof data.hr>();
     for (const h of data.hr) {
-      const day = new Date(h.timestamp).toISOString().slice(0, 10);
+      const day = localDayKey(h.timestamp, profile.dayStartHour);
       if (!byDay.has(day)) byDay.set(day, []);
       const bd = byDay.get(day);
       if (bd) bd.push(h);
     }
-    for (const [, dayHr] of byDay) {
-      const strain = computeDayStrain(dayHr, 50, 190).strain;
+    const sortedDays = [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    for (const [, dayHr] of sortedDays) {
+      const strain = computeDayStrain(dayHr, profile.restingHeartRate, profile.maxHeartRate).strain;
       dayStrains.push(strain);
     }
 
-    // Sleep performance per night
+    // Sleep performance per local day (by sleep start)
     const sleepByDay = new Map<string, typeof data.sleep>();
     for (const s of data.sleep) {
-      const day = new Date(s.start).toISOString().slice(0, 10);
+      const day = localDayKey(s.start, profile.dayStartHour);
       if (!sleepByDay.has(day)) sleepByDay.set(day, []);
       const sd = sleepByDay.get(day);
       if (sd) sd.push(s);
     }
-    for (const [, segs] of sleepByDay) {
+    for (const [, segs] of [...sleepByDay.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
       const summary = analyzeSleep(segs);
       daySleepPerfs.push(summary.sleepPerformance);
     }
 
-    // Steps: max per day (cumulative), sum across days
-    const stepsByDay = new Map<string, number>();
+    // Steps: cumulative counter per local day window (sum segment maxima, defensive), summed across days
+    const stepsByDay = new Map<string, { timestamp: number; steps: number }[]>();
     for (const s of data.steps) {
-      const day = new Date(s.timestamp).toISOString().slice(0, 10);
-      const cur = stepsByDay.get(day) ?? 0;
-      stepsByDay.set(day, Math.max(cur, s.steps));
+      const day = localDayKey(s.timestamp, profile.dayStartHour);
+      if (!stepsByDay.has(day)) stepsByDay.set(day, []);
+      const arr = stepsByDay.get(day);
+      if (arr) arr.push({ timestamp: s.timestamp, steps: s.steps });
     }
-    for (const v of stepsByDay.values()) totalSteps += v;
+    for (const [, samples] of [...stepsByDay.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      totalSteps += sumDailySteps(samples);
+    }
 
     const avgStrain = dayStrains.length > 0 ? dayStrains.reduce((a, b) => a + b, 0) / dayStrains.length : 0;
     const avgSleepPerf = daySleepPerfs.length > 0 ? daySleepPerfs.reduce((a, b) => a + b, 0) / daySleepPerfs.length : 0;

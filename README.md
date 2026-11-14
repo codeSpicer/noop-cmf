@@ -36,20 +36,21 @@ The goal is to give CMF watch owners deeper, private, own-your-data analytics (i
 
 - **Web Bluetooth sync** with CMF Watch Pro 2 (pairing/auth and on-demand fetch).
 - **Gadgetbridge SQLite import** (`.db` file drop/select).
-- **JSON export/import** for full backup and restore (imports **merge** into local data, so repeated syncs/imports accumulate history).
+- **JSON export/import** for full backup and restore (imports **merge** into local data, so repeated syncs/imports accumulate history; exports include your local profile/preferences).
+- **Personal profile & preferences:** set resting/max heart rate (and optional age/sex/height/weight) to personalize HR zones, strain/TRIMP, recovery, and training load, plus a configurable daily step reset (midnight or 2:00 AM). Stored locally and recomputed from your raw samples.
 - **Watch simulator (demo mode):** seed temporary sample data to explore the dashboard without a watch; turning it off removes only the simulator demo data and leaves your synced/imported data intact.
 - **Local-first storage** in browser IndexedDB (Dexie).
 - **PWA** with offline-capable shell and install prompt.
 
 ### Analytics & insights
 
-- **Recovery (1–99):** from overnight HR/stress vs a rolling ~30-day baseline, with resting heart rate (RHR) and an eHRV proxy.
+- **Recovery (1–99):** from overnight HR/stress vs a rolling ~30-day baseline, with resting heart rate (RHR) and an eHRV proxy (personalized when you set your baselines in Profile).
 - **Readiness / time-to-recovery:** decaying readiness after strain with a “ready to go” countdown.
 - **Strain (0–21):** daily load from Banister TRIMP and HR zones, zone breakdown, intensity minutes, and per-workout TRIMP/HR stats.
-- **Sleep:** hypnogram, total sleep, sleep performance, dynamic sleep need/debt, sleep coach (recommended bedtime), and consistency.
-- **Training load:** acute (7-day) vs chronic (28-day) load, ACWR, and training status (productive/maintaining/overreaching/detraining).
+- **Sleep:** primary/main overnight sleep session view (last 24h) with hypnogram, total sleep/time in bed, sleep performance, dynamic sleep need/debt, sleep coach (recommended bedtime), and consistency. Shows session window/notes and other detected sleep/rest periods; totals can differ from the watch if sleep stages were recorded while not worn (off-wrist periods may not be explicitly marked in synced data).
+- **Training load:** acute (7-day) vs chronic (28-day) load, ACWR, and training status (productive/maintaining/overreaching/detraining). Shows **calibrating** guidance when there isn’t enough history for a reliable baseline (e.g. sparse/early data).
 - **Weekly summary:** per-week strain, sleep, steps, energy, and watch wear time.
-- **Trends & monitoring:** RHR trend, baseline bands, stress trend, health monitor/energy.
+- **Trends & monitoring:** RHR trend, baseline bands, stress trend, health monitor/energy. “Steps” reflects **today** (by your configured local day boundary) rather than a trailing 24h peak.
 - **Habits & journal:** morning journal and habit-impact view.
 - **VO₂ max estimator:** Cooper (12-min run) and Rockport (1-mile walk) tests with fitness category.
 
@@ -147,11 +148,12 @@ pnpm format:check  # check
 
 1. **Open the app** in a supported browser (Chromium on desktop/Android) — locally or a deployed instance — and go to **Sync**.
 2. **Try the demo (no watch needed):** on **Sync**, use **Simulator mode** to seed temporary sample data and explore the dashboard. Turning it off removes only the simulator demo data — your synced/imported data stays intact.
-3. **Sync from the watch (Web Bluetooth):** click **Connect & sync** and grant Bluetooth permission when prompted. Data is fetched and merged into local storage (repeated syncs accumulate; they don’t wipe existing data).
-4. **Or import Gadgetbridge data:** on **Sync**, drop/select a Gadgetbridge SQLite `.db` export to import historical samples.
-5. **Back up / restore:** use **Export data (JSON)** for a full snapshot and **Import data (JSON)** to restore/merge (recommended before clearing browser data or moving devices/browsers).
-6. **Explore analytics:** Overview, Strain, Recovery, Sleep, Weekly, Training, Workouts, Journal, and VO₂ Max pages visualize metrics computed from your locally stored data.
-7. **Export a workout to Strava:** open **Workouts**, click **Export TCX** on a workout to download a `.tcx` file, then upload it at [strava.com/upload/select](https://www.strava.com/upload/select). Works for GPS-less workouts (duration/HR when available).
+3. **Set your profile (recommended):** open **Profile** to enter your resting/max heart rate (and optional body metrics) and choose your daily step reset time (midnight or 2:00 AM). This personalizes HR zones/strain, recovery, and training load; metrics are recomputed locally from your synced data.
+4. **Sync from the watch (Web Bluetooth):** click **Connect & sync** and grant Bluetooth permission when prompted. Data is fetched and merged into local storage (repeated syncs accumulate; they don’t wipe existing data).
+5. **Or import Gadgetbridge data:** on **Sync**, drop/select a Gadgetbridge SQLite `.db` export to import historical samples.
+6. **Back up / restore:** use **Export data (JSON)** for a full snapshot and **Import data (JSON)** to restore/merge (recommended before clearing browser data or moving devices/browsers).
+7. **Explore analytics:** Overview, Strain, Recovery, Sleep, Weekly, Training, Workouts, Journal, and VO₂ Max pages visualize metrics computed from your locally stored data. Sleep focuses on your primary overnight session (with session window/notes), steps show today’s count by your configured day boundary, and training status may show “calibrating” until enough history is available.
+8. **Export a workout to Strava:** open **Workouts**, click **Export TCX** on a workout to download a `.tcx` file, then upload it at [strava.com/upload/select](https://www.strava.com/upload/select). Works for GPS-less workouts (duration/HR when available).
 
 ## Important: using with the official Nothing/CMF app
 
@@ -199,7 +201,9 @@ All health data is processed and stored **locally in your browser’s IndexedDB*
 - **BLE contention:** sync can conflict with an active connection from the official Nothing/CMF app (see [Important: using with the official Nothing/CMF app](#important-using-with-the-official-nothingcmf-app)).
 - **No call/notification mirroring:** noop-cmf does not forward calls/notifications to the watch — keep the official app for that.
 - **Protocol/workout decoding is evolving:** some fetch payloads, workout details, and GPS data are still being refined/validated on real devices.
-- **Baselines need history:** recovery/readiness metrics become more meaningful as you accumulate days of data (rolling baselines).
+- **Baselines need history & personalization:** recovery/readiness/training metrics become more meaningful as you accumulate days of data (rolling baselines). Set your resting/max HR in **Profile** for accurate HR zones/strain; with sparse history training status may show as calibrating.
+- **Sleep session interpretation:** the Sleep view focuses on the primary overnight session in the last 24h. If sleep stages were recorded while the watch wasn’t worn (e.g. evening rest), or off-wrist periods aren’t explicitly marked in synced data, totals can differ from the watch — session windows/notes and detected gaps help highlight this.
+- **Steps & day boundary:** steps are shown as “today” using a cumulative counter within a local day boundary (midnight by default, configurable to 2:00 AM in Profile).
 - **Browser quirks:** Brave and some hardened/privacy configurations may block Web Bluetooth.
 
 ## Disclaimer

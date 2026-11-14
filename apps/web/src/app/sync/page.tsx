@@ -248,6 +248,21 @@ export default function SyncPage() {
         />
       </label>
 
+      <div className="rounded-2xl border border-line bg-card p-6 space-y-2">
+        <p className="text-sm font-semibold text-foreground">Personal metrics &amp; preferences</p>
+        <p className="text-sm text-muted">
+          Set your resting/max heart rate, body metrics, and daily step reset time to personalize strain, recovery,
+          and training load. Stored locally on this device.
+        </p>
+        <a
+          href="/profile"
+          className="inline-block rounded-full border border-line bg-surface px-4 py-2 text-sm font-semibold text-foreground hover:bg-void"
+          data-testid="profile-link"
+        >
+          Open Profile
+        </a>
+      </div>
+
       <div className="rounded-2xl border border-line bg-card p-6 space-y-3" data-testid="simulator-card">
         <div>
           <p className="text-sm font-semibold text-foreground">Simulator mode (demo)</p>

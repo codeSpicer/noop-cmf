@@ -12,6 +12,22 @@ import { errorMessage } from '@/lib/errors';
 import { isDemoMode } from '@/lib/demo-provider';
 import { enableSimulatorMode } from '@/lib/simulator-mode';
 
+function formatDateTime(ts: number): string {
+  return new Date(ts).toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatDuration(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${String(h)}h ${String(mm)}m`;
+}
+
 export default function SleepPage() {
   const [view, setView] = useState<SleepView | null>(null);
   const [consistency, setConsistency] = useState<number | null>(null);
@@ -52,29 +68,60 @@ export default function SleepPage() {
   if (!view) {
     return <p>No data yet — sync a watch from the Sync page.</p>;
   }
+  const asleepMin = Math.round(view.summary.totalSleepMinutes);
+  const inBedMin = Math.round(view.summary.timeInBedMinutes);
   return (
     <section aria-label="Sleep" className="space-y-4">
       <header>
         <p className="text-sm text-muted">Last night</p>
         <h1 className="text-2xl font-semibold text-foreground">Sleep</h1>
         <p className="text-sm text-muted max-w-prose">
-           Hypnogram: lighter purple = light sleep, darker purple = deep sleep, purple = REM, gray = awake. Sleep need tonight = 7.5h baseline + extra for today&apos;s strain and sleep debt. Consistency = how regular your bed/wake times are (0-100).
+          Showing your primary/main sleep session from the last 24 hours (not every sleep/rest period).
+          Hypnogram: lighter purple = light sleep, darker purple = deep sleep, purple = REM, gray = awake.
+          Sleep need tonight = 7.5h baseline + extra for today&apos;s strain and sleep debt. Consistency = how regular
+          your bed/wake times are (0-100).
         </p>
       </header>
       <ErrorBoundary>
         <div className="rounded-2xl border border-line bg-card p-6">
           <Hypnogram segments={view.segments} testId="hypnogram" />
+          {view.sessionStart !== null && view.sessionEnd !== null ? (
+            <p className="mt-3 text-sm text-muted" data-testid="sleep-session-window">
+              Main sleep session: <span className="text-foreground">{formatDateTime(view.sessionStart)} → {formatDateTime(view.sessionEnd)}</span>
+              {view.otherSessionsCount > 0 ? (
+                <span> · {String(view.otherSessionsCount)} other sleep/rest period{view.otherSessionsCount === 1 ? '' : 's'} in last 24h not included</span>
+              ) : null}
+            </p>
+          ) : null}
+          {view.notes.length > 0 ? (
+            <div className="mt-2 space-y-1">
+              {view.notes.map((note, i) => (
+                <p key={i} className="text-xs text-amber-500">
+                  {note}
+                </p>
+              ))}
+            </div>
+          ) : null}
         </div>
       </ErrorBoundary>
-      <div className="rounded-2xl border border-line bg-card p-6">
+      <div className="rounded-2xl border border-line bg-card p-6 space-y-1">
+        <p data-testid="sleep-total" className="text-muted">
+          Total sleep: <span className="text-foreground">{asleepMin} min</span>{' '}
+          <span className="text-xs text-muted">({formatDuration(asleepMin)} asleep)</span>
+        </p>
+        <p className="text-muted">
+          Time in bed (session span): <span className="text-foreground">{inBedMin} min</span>{' '}
+          <span className="text-xs text-muted">({formatDuration(inBedMin)})</span>
+        </p>
+        <p className="text-muted">
+          Sleep performance: <span className="text-foreground">{view.summary.sleepPerformance}%</span>{' '}
+          <span className="text-xs text-muted">(efficiency {Math.round(view.summary.sleepEfficiency)}%, restorative {Math.round(view.summary.restorativeShare * 100)}%)</span>
+        </p>
         <p data-testid="sleep-need" className="text-muted">
           Tonight&apos;s sleep need:{' '}
           <span className="text-foreground">
             {Math.round(view.need / 60)}h {view.need % 60}m
           </span>
-        </p>
-        <p data-testid="sleep-total" className="text-muted">
-          Total sleep: <span className="text-foreground">{Math.round(view.summary.totalSleepMinutes)} min</span>
         </p>
         {consistency !== null ? (
           <p data-testid="sleep-consistency" className="text-muted">
@@ -92,6 +139,10 @@ export default function SleepPage() {
           </div>
         ) : null}
       </div>
+      <p className="text-xs text-muted">
+        Note: If the watch recorded sleep stages while not worn (e.g. evening rest), totals can differ from the watch&apos;s
+        main-sleep summary. Gaps/off-wrist periods may not always be explicitly marked in synced data.
+      </p>
     </section>
   );
 }

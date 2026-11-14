@@ -1,4 +1,5 @@
 import { getDatabase } from '@/db/database';
+import type { StoredUserProfile } from '@/db/database';
 
 export interface JsonImportCounts {
   readonly hr: number;
@@ -26,10 +27,11 @@ export async function importAllFromJson(file: File): Promise<JsonImportCounts> {
   const workouts = asArray(payload['workouts']);
   const steps = asArray(payload['steps']);
   const rawFrames = asArray(payload['workoutRawFrames']);
+  const profile = payload['userProfile'];
 
   await db.transaction(
     'rw',
-    [db.hrSamples, db.stressSamples, db.spo2Samples, db.sleepSegments, db.workouts, db.steps, db.workoutRawFrames],
+    [db.hrSamples, db.stressSamples, db.spo2Samples, db.sleepSegments, db.workouts, db.steps, db.workoutRawFrames, db.userProfile],
     async () => {
       if (hr.length) await db.hrSamples.bulkPut(hr as never);
       if (stress.length) await db.stressSamples.bulkPut(stress as never);
@@ -38,6 +40,21 @@ export async function importAllFromJson(file: File): Promise<JsonImportCounts> {
       if (workouts.length) await db.workouts.bulkPut(workouts as never);
       if (steps.length) await db.steps.bulkPut(steps as never);
       if (rawFrames.length) await db.workoutRawFrames.bulkPut(rawFrames as never);
+      if (profile && typeof profile === 'object') {
+        const p = profile as Record<string, unknown>;
+        const stored: StoredUserProfile = {
+          id: 'default',
+          ...(typeof p['restingHeartRate'] === 'number' ? { restingHeartRate: p['restingHeartRate'] } : {}),
+          ...(typeof p['maxHeartRate'] === 'number' ? { maxHeartRate: p['maxHeartRate'] } : {}),
+          ...(typeof p['age'] === 'number' ? { age: p['age'] } : {}),
+          ...(p['sex'] === 'male' || p['sex'] === 'female' || p['sex'] === 'other' ? { sex: p['sex'] } : {}),
+          ...(typeof p['heightCm'] === 'number' ? { heightCm: p['heightCm'] } : {}),
+          ...(typeof p['weightKg'] === 'number' ? { weightKg: p['weightKg'] } : {}),
+          ...(typeof p['dayStartHour'] === 'number' ? { dayStartHour: p['dayStartHour'] } : {}),
+          ...(typeof p['updatedAt'] === 'number' ? { updatedAt: p['updatedAt'] } : {}),
+        };
+        await db.userProfile.put(stored);
+      }
     },
   );
 

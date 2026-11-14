@@ -4,9 +4,7 @@
 import { getDatabase } from '@/db/database';
 import type { NoopCmfDatabase } from '@/db/database';
 import { computeDayStrain } from '@noop-cmf/physio-engine';
-
-const BASELINE_RHR = 50;
-const BASELINE_HR_MAX = 190;
+import { loadResolvedUserProfile } from './user-profile';
 
 export interface WorkoutTrimp {
   readonly id: string;
@@ -24,11 +22,15 @@ export interface WorkoutTrimp {
 export async function loadWorkoutTrimp(
   db: NoopCmfDatabase = getDatabase(),
 ): Promise<WorkoutTrimp[]> {
-  const [workouts, hrRows] = await Promise.all([db.workouts.toArray(), db.hrSamples.toArray()]);
+  const [workouts, hrRows, profile] = await Promise.all([
+    db.workouts.toArray(),
+    db.hrSamples.toArray(),
+    loadResolvedUserProfile(db),
+  ]);
   const result: WorkoutTrimp[] = [];
   for (const w of workouts) {
     const samples = hrRows.filter((h) => h.timestamp >= w.start && h.timestamp <= w.end);
-    const breakdown = computeDayStrain(samples, BASELINE_RHR, BASELINE_HR_MAX);
+    const breakdown = computeDayStrain(samples, profile.restingHeartRate, profile.maxHeartRate);
     let avgHeartRate: number | null = null;
     let maxHeartRate: number | null = null;
     if (samples.length > 0) {

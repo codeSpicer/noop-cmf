@@ -18,7 +18,7 @@ export function HealthMonitorCard({ metrics, loading = false }: HealthMonitorCar
     { testId: 'hm-stress', label: 'Stress', value: String(metrics.stress) },
     { testId: 'hm-spo2', label: 'SpO2', value: `${String(metrics.spo2)}%` },
     { testId: 'hm-sleep', label: 'Sleep', value: `${String(sleepH)}h ${String(sleepM)}m` },
-    { testId: 'hm-steps', label: 'Steps', value: String(metrics.steps) },
+    { testId: 'hm-steps', label: metrics.stepsLabel ?? 'Steps', value: String(metrics.steps) },
   ];
   return (
     <div data-testid="health-monitor" className="rounded-2xl border border-line bg-card p-6">

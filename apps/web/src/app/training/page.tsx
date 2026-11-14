@@ -12,6 +12,7 @@ const STATUS_COLORS: Record<TrainingStatus, string> = {
   maintaining: 'text-foreground',
   overreaching: 'text-red-400',
   detraining: 'text-muted',
+  calibrating: 'text-warn',
 };
 
 const STATUS_DESC: Record<TrainingStatus, string> = {
@@ -19,6 +20,7 @@ const STATUS_DESC: Record<TrainingStatus, string> = {
   maintaining: 'Load is stable; fitness is holding.',
   overreaching: 'Load is too high relative to recovery — consider rest.',
   detraining: 'Load is too low — risk of losing fitness.',
+  calibrating: 'Collecting enough history for a reliable training-load baseline.',
 };
 
 export default function TrainingPage() {
@@ -53,18 +55,23 @@ export default function TrainingPage() {
         <p className="text-sm text-muted">Training load</p>
         <h1 className="text-2xl font-semibold text-foreground">Training Status</h1>
         <p className="text-sm text-muted max-w-prose">
-          ACWR = acute (7-day) load ÷ chronic (28-day) load. Status combines load ratio with recovery trend (resting HR). Productive = adapting; overreaching = too much; detraining = too little.
+          ACWR = acute (7-day) load ÷ chronic (28-day) load. Status combines load ratio with recovery trend (resting HR). Productive = adapting; overreaching = too much; detraining = too little. With limited history, status may show as calibrating until ~2–4 weeks of data are available.
         </p>
       </header>
       <div className="rounded-2xl border border-line bg-card p-6 space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted">ACWR</p>
-          <p className={`text-2xl font-semibold ${STATUS_COLORS[view.status]}`}>{view.acwr.toFixed(2)}</p>
+          <p className={`text-2xl font-semibold ${STATUS_COLORS[view.status]}`}>
+            {view.status === 'calibrating' ? '—' : view.acwr.toFixed(2)}
+          </p>
         </div>
         <p className={`text-sm font-semibold ${STATUS_COLORS[view.status]}`}>
           {view.status.charAt(0).toUpperCase() + view.status.slice(1)}
         </p>
-        <p className="text-xs text-muted">{STATUS_DESC[view.status]}</p>
+        <p className="text-xs text-muted">{view.message ?? STATUS_DESC[view.status]}</p>
+        <p className="text-xs text-muted">
+          Days with HR/strain data: {view.daysWithData7}/7 (last 7d), {view.daysWithData28}/28 (last 28d).
+        </p>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <p className="text-xs text-muted">Acute load (7d)</p>

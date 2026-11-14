@@ -45,9 +45,10 @@ export function CalibrationNotice({ show }: CalibrationNoticeProps) {
           Calibration in progress
         </h2>
         <p id="calibration-notice-description" className="mt-2 text-sm text-muted">
-          I&apos;m still calibrating your baselines. Recovery, readiness, and sleep insights will
-          become more accurate as more days of data and sleep data come in. Keep syncing your watch
-          and wearing it during sleep for the best results.
+          I&apos;m still calibrating your baselines. Recovery, readiness, sleep, and training insights will
+          become more accurate as more days of data (including sleep) come in. For more personalized strain,
+          recovery, and training load, set your resting/max heart rate and other metrics in Profile. Keep syncing
+          your watch and wearing it during sleep for the best results.
         </p>
         <div className="mt-4 flex justify-end">
           <button
